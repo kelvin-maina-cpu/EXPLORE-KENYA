@@ -45,30 +45,38 @@ export default function Register() {
         </View>
 
         <View style={styles.formCard}>
+          <Text style={styles.label}>Full Name</Text>
           <TextInput
             style={styles.input}
-            placeholder={t('full_name')}
+            placeholder="Enter your full name"
+            placeholderTextColor="#999"
             value={form.name}
             onChangeText={(text) => setForm((current) => ({ ...current, name: text }))}
           />
+          <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.input}
-            placeholder={t('email')}
+            placeholder="Enter your email"
+            placeholderTextColor="#999"
             value={form.email}
             onChangeText={(text) => setForm((current) => ({ ...current, email: text }))}
             keyboardType="email-address"
             autoCapitalize="none"
           />
+          <Text style={styles.label}>Phone (M-Pesa)</Text>
           <TextInput
             style={styles.input}
-            placeholder={t('phone_number')}
+            placeholder="07XX XXX XXX"
+            placeholderTextColor="#999"
             value={form.phoneNumber}
             onChangeText={(text) => setForm((current) => ({ ...current, phoneNumber: text }))}
             keyboardType="phone-pad"
           />
+          <Text style={styles.label}>Password</Text>
           <TextInput
             style={styles.input}
-            placeholder={t('password')}
+            placeholder="Enter your password"
+            placeholderTextColor="#999"
             value={form.password}
             onChangeText={(text) => setForm((current) => ({ ...current, password: text }))}
             secureTextEntry
@@ -130,13 +138,21 @@ const styles = StyleSheet.create({
     borderColor: '#D9E0EA',
     gap: 12,
   },
+  label: {
+    fontSize: 13,
+    color: '#555',
+    marginBottom: 6,
+    marginTop: 12,
+    fontWeight: '500',
+  },
   input: {
     borderWidth: 1,
-    borderColor: '#D8DEE7',
-    borderRadius: 16,
-    padding: 15,
-    backgroundColor: '#FFFDF9',
-    fontSize: 16,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 15,
+    color: '#1a1a1a',
+    backgroundColor: '#fff',
   },
   primaryButton: {
     marginTop: 4,

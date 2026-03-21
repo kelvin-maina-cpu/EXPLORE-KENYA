@@ -30,17 +30,21 @@ export default function Login() {
       </View>
 
       <View style={styles.formCard}>
+        <Text style={styles.label}>Email</Text>
         <TextInput
           style={styles.input}
-          placeholder={t('email')}
+          placeholder="Enter your email"
+          placeholderTextColor="#999"
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
         />
+        <Text style={styles.label}>Password</Text>
         <TextInput
           style={styles.input}
-          placeholder={t('password')}
+          placeholder="Enter your password"
+          placeholderTextColor="#999"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -103,13 +107,21 @@ const styles = StyleSheet.create({
     borderColor: '#D9E0EA',
     gap: 12,
   },
+  label: {
+    fontSize: 13,
+    color: '#555',
+    marginBottom: 6,
+    marginTop: 12,
+    fontWeight: '500',
+  },
   input: {
     borderWidth: 1,
-    borderColor: '#D8DEE7',
-    borderRadius: 16,
-    padding: 15,
-    backgroundColor: '#FFFDF9',
-    fontSize: 16,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 15,
+    color: '#1a1a1a',
+    backgroundColor: '#fff',
   },
   primaryButton: {
     marginTop: 4,
