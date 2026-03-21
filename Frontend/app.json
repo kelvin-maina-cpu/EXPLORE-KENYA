@@ -9,8 +9,13 @@
       "backgroundColor": "#ffffff"
     },
     "scheme": "explorekenya",
-    "platforms": ["ios", "android"],
-    "assetBundlePatterns": ["**/*"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -28,8 +33,11 @@
         "RECORD_AUDIO",
         "INTERNET",
         "ACCESS_NETWORK_STATE",
-        "MODIFY_AUDIO_SETTINGS"
-      ]
+        "MODIFY_AUDIO_SETTINGS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "package": "com.maishke.explorekenya"
     },
     "plugins": [
       "expo-router",
@@ -44,7 +52,11 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "http://192.168.0.101:5000"
+      "apiUrl": "http://192.168.0.101:5000",
+      "router": {},
+      "eas": {
+        "projectId": "790bc6ce-d430-47bd-81f5-3b3dd40f2afc"
+      }
     }
   }
 }
