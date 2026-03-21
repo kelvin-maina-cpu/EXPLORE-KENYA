@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@headlessui/react": "^2.2.9",
+    "autoprefixer": "^10.4.27",
+    "axios": "^1.13.6",
+    "postcss": "^8.5.8",
+    "react": "^18.2.0",
+    "react-router-dom": "^7.13.1",
+    "tailwindcss": "^4.2.1"
+  }
+}

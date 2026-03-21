@@ -1,0 +1,61 @@
+require('dotenv').config();
+const os = require('os');
+const express = require('express');
+const cors = require('cors');
+const connectDB = require('./config/db');
+const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+const attractionRoutes = require('./routes/attractionRoutes');
+const wildlifeRoutes = require('./routes/wildlifeRoutes');
+const chatbotRoutes = require('./routes/chatbotRoutes');
+const liveStreamRoutes = require('./routes/liveStreamRoutes');
+const errorHandler = require('./middleware/errorMiddleware');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const getLanAddress = () => {
+  const interfaces = os.networkInterfaces();
+
+  for (const network of Object.values(interfaces)) {
+    for (const address of network || []) {
+      if (address.family === 'IPv4' && !address.internal) {
+        return address.address;
+      }
+    }
+  }
+
+  return null;
+};
+
+connectDB()
+  .then(() => {
+    app.get('/', (req, res) => res.json({ message: 'Explore Kenya API' }));
+
+    app.use('/api/auth', authRoutes);
+    app.use('/api/users', userRoutes);
+    app.use('/api/attractions', attractionRoutes);
+    app.use('/api/wildlife', wildlifeRoutes);
+    app.use('/api/chatbot', chatbotRoutes);
+    app.use('/api/live-streams', liveStreamRoutes);
+    app.use('/api/bookings', require('./routes/bookingRoutes'));
+    app.use('/api/mpesa', require('./routes/mpesaRoutes'));
+
+    app.use(errorHandler);
+
+    const PORT = process.env.PORT || 5000;
+    const HOST = '0.0.0.0';
+
+    app.listen(PORT, HOST, () => {
+      const lanAddress = getLanAddress();
+      console.log(`Server ready: http://localhost:${PORT}`);
+      if (lanAddress) {
+        console.log(`LAN access: http://${lanAddress}:${PORT}`);
+      }
+    });
+  })
+  .catch((err) => {
+    console.error('Server startup failed:', err);
+    process.exit(1);
+  });
