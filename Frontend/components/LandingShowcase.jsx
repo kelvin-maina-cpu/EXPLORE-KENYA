@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useLocale } from '../context/LocalizationContext';
 import { getAttractions } from '../services/api';
 
 const FEATURE_CARDS = [
@@ -47,10 +48,20 @@ const PACKAGE_OPTIONS = ['Day trip', 'Weekend', 'Family', 'Premium'];
 export default function LandingShowcase({ withinTabs = false }) {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+  const { t } = useLocale();
   const [travelDate, setTravelDate] = useState('');
   const [visitors, setVisitors] = useState('2');
   const [selectedPackage, setSelectedPackage] = useState(PACKAGE_OPTIONS[0]);
   const glowAnimation = useRef(new Animated.Value(0)).current;
+  const featureCards = useMemo(
+    () => [
+      { ...FEATURE_CARDS[0], title: t('landing_feature_navigation_title'), copy: t('landing_feature_navigation_copy') },
+      { ...FEATURE_CARDS[1], title: t('landing_feature_mpesa_title'), copy: t('landing_feature_mpesa_copy') },
+      { ...FEATURE_CARDS[2], title: t('landing_feature_live_title'), copy: t('landing_feature_live_copy') },
+      { ...FEATURE_CARDS[3], title: t('landing_feature_language_title'), copy: t('landing_feature_language_copy') },
+    ],
+    [t]
+  );
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -108,22 +119,19 @@ export default function LandingShowcase({ withinTabs = false }) {
           <Animated.View style={[styles.heroGlowSmall, styles.heroGlowTwo]} />
 
           <View style={styles.heroBadge}>
-            <Text style={styles.heroBadgeText}>Wildlife & Tourist Attractions</Text>
+            <Text style={styles.heroBadgeText}>{t('landing_badge')}</Text>
           </View>
 
-          <Text style={styles.heroTitle}>Discover the Magic of Kenya</Text>
-          <Text style={styles.heroCopy}>
-            Experience breathtaking wildlife, rich culture, and unforgettable adventures across Kenya's
-            most iconic destinations. Now with 20+ parks and reserves.
-          </Text>
+          <Text style={styles.heroTitle}>{t('landing_title')}</Text>
+          <Text style={styles.heroCopy}>{t('landing_copy')}</Text>
 
           <View style={styles.heroActions}>
             <TouchableOpacity style={styles.primaryButton} onPress={() => requireAuthAndPush(exploreTarget)}>
-              <Text style={styles.primaryButtonText}>Explore destinations</Text>
+              <Text style={styles.primaryButtonText}>{t('landing_explore')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.secondaryButton} onPress={() => requireAuthAndPush('/(tabs)/live')}>
-              <Text style={styles.secondaryButtonText}>Watch live</Text>
+              <Text style={styles.secondaryButtonText}>{t('landing_watch_live')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -138,9 +146,9 @@ export default function LandingShowcase({ withinTabs = false }) {
 
         <View style={styles.statsRow}>
           {[
-            { value: '20+', label: 'Parks & Reserves' },
-            { value: '10K+', label: 'Visitors Monthly' },
-            { value: '4.9⭐', label: 'App Rating' },
+            { value: '20+', label: t('landing_stat_parks') },
+            { value: '10K+', label: t('landing_stat_visitors') },
+            { value: '4.9⭐', label: t('landing_stat_rating') },
           ].map((stat) => (
             <View key={stat.label} style={styles.statCard}>
               <Text style={styles.statValue}>{stat.value}</Text>
@@ -150,11 +158,9 @@ export default function LandingShowcase({ withinTabs = false }) {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionEyebrow}>READY TO EXPLORE</Text>
-          <Text style={styles.sectionTitle}>Discover Kenya Attractions</Text>
-          <Text style={styles.sectionCopy}>
-            20+ parks, reserves, beaches across Kenya with full filtering & maps.
-          </Text>
+          <Text style={styles.sectionEyebrow}>{t('landing_ready_label')}</Text>
+          <Text style={styles.sectionTitle}>{t('landing_ready_title')}</Text>
+          <Text style={styles.sectionCopy}>{t('landing_ready_copy')}</Text>
         </View>
 
         <TouchableOpacity
@@ -163,16 +169,14 @@ export default function LandingShowcase({ withinTabs = false }) {
         >
           <Text style={styles.exploreBtnIcon}>🗺️</Text>
           <View style={{ flex: 1 }}>
-            <Text style={styles.exploreBtnTitle}>Explore all attractions</Text>
-            <Text style={styles.exploreBtnSub}>
-              20+ parks, reserves & beaches across Kenya
-            </Text>
+            <Text style={styles.exploreBtnTitle}>{t('landing_explore_title')}</Text>
+            <Text style={styles.exploreBtnSub}>{t('landing_explore_copy')}</Text>
           </View>
           <Text style={styles.exploreBtnArrow}>→</Text>
         </TouchableOpacity>
 
         <View style={styles.featuresGrid}>
-          {FEATURE_CARDS.map((feature) => (
+          {featureCards.map((feature) => (
             <View key={feature.key} style={styles.featureCard}>
               <Text style={styles.featureIcon}>{feature.icon}</Text>
               <Text style={styles.featureTitle}>{feature.title}</Text>
@@ -182,9 +186,9 @@ export default function LandingShowcase({ withinTabs = false }) {
         </View>
 
         <View style={styles.bookingCard}>
-          <Text style={styles.bookingTitle}>Quick booking</Text>
+          <Text style={styles.bookingTitle}>{t('landing_booking_title')}</Text>
           <TouchableOpacity style={styles.bookingButton} onPress={handleAbout}>
-            <Text style={styles.bookingButtonText}>Get started</Text>
+            <Text style={styles.bookingButtonText}>{t('landing_booking_cta')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -192,13 +196,13 @@ export default function LandingShowcase({ withinTabs = false }) {
           <Text style={styles.footerBrand}>Explore Kenya</Text>
           <View style={styles.footerLinks}>
             <TouchableOpacity onPress={handleAbout}>
-              <Text style={styles.footerLink}>About</Text>
+              <Text style={styles.footerLink}>{t('landing_footer_about')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => requireAuthAndPush('/(tabs)/live')}>
-              <Text style={styles.footerLink}>Live cams</Text>
+              <Text style={styles.footerLink}>{t('landing_footer_live')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => requireAuthAndPush('/(tabs)/bookings')}>
-              <Text style={styles.footerLink}>Bookings</Text>
+              <Text style={styles.footerLink}>{t('landing_footer_bookings')}</Text>
             </TouchableOpacity>
           </View>
         </View>

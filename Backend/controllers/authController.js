@@ -17,33 +17,60 @@ const buildAuthResponse = (user) => ({
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password, preferences, phoneNumber } = req.body;
+  let { name, email, password, preferences, phoneNumber } = req.body;
 
+  // Sanitize inputs
+  name = (name || '').trim();
+  email = (email || '').trim().toLowerCase();
+  password = password || '';
+
+  // Validate required fields
   if (!name || !email || !password) {
     res.status(400);
     throw new Error('Name, email, and password are required');
   }
 
+  if (password.length < 6) {
+    res.status(400);
+    throw new Error('Password must be at least 6 characters');
+  }
+
+  const emailRegex = /^[\w.-]+@[\w.-]+\.\w{2,}$/i;
+  if (!emailRegex.test(email)) {
+    res.status(400);
+    throw new Error('Please add a valid email');
+  }
+
   const userExists = await User.findOne({ email });
   if (userExists) {
     res.status(400);
-    throw new Error('User already exists');
+    throw new Error('User already exists with this email');
   }
 
-  const user = await User.create({
-    name,
-    email,
-    password,
-    preferences,
-    phoneNumber,
-  });
+  try {
+    const user = await User.create({
+      name,
+      email,
+      password,
+      preferences,
+      phoneNumber: phoneNumber?.trim(),
+    });
 
-  if (!user) {
-    res.status(400);
-    throw new Error('Invalid user data');
+    res.status(201).json(buildAuthResponse(user));
+  } catch (validationError) {
+    console.error('User registration validation failed:', {
+      inputEmail: email,
+      errors: validationError.message
+    });
+
+    if (validationError.name === 'ValidationError') {
+      const errors = Object.values(validationError.errors).map(err => err.message);
+      res.status(400).json({ message: 'Validation failed', errors });
+    } else {
+      res.status(400);
+      throw new Error('Invalid user data');
+    }
   }
-
-  res.status(201).json(buildAuthResponse(user));
 });
 
 // @desc    Auth user & get token

@@ -14,19 +14,6 @@ const normalizeHostname = (hostname) => {
   return hostname;
 };
 
-const isPrivateOrLocalHostname = (hostname) => {
-  if (!hostname) {
-    return false;
-  }
-
-  return (
-    LOCALHOST_HOSTS.has(hostname) ||
-    /^10\./.test(hostname) ||
-    /^192\.168\./.test(hostname) ||
-    /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
-  );
-};
-
 const normalizeBaseOrigin = (value) => {
   if (!value) {
     return '';
@@ -58,22 +45,23 @@ const getExpoHostOrigin = () => {
 };
 
 const joinApiPath = (origin) => `${origin.replace(/\/+$/, '')}/api`;
+const uniqueValues = (values) => [...new Set(values.filter(Boolean))];
 
 const envBaseUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 const configBaseUrl = Constants.expoConfig?.extra?.apiUrl?.trim();
 const configuredOrigin = normalizeBaseOrigin(envBaseUrl || configBaseUrl);
 const expoHostOrigin = getExpoHostOrigin();
 const defaultOrigin = `http://${normalizeHostname('127.0.0.1')}:${API_PORT}`;
-const primaryOrigin = configuredOrigin || expoHostOrigin || defaultOrigin;
+const primaryOrigin = envBaseUrl
+  ? configuredOrigin || expoHostOrigin || defaultOrigin
+  : expoHostOrigin || configuredOrigin || defaultOrigin;
 
-const shouldUseExpoFallback =
-  !envBaseUrl &&
-  configuredOrigin &&
-  expoHostOrigin &&
-  configuredOrigin !== expoHostOrigin &&
-  isPrivateOrLocalHostname(new URL(configuredOrigin).hostname);
+const FALLBACK_API_BASE_URLS = uniqueValues([
+  expoHostOrigin ? joinApiPath(expoHostOrigin) : '',
+  configuredOrigin ? joinApiPath(configuredOrigin) : '',
+  joinApiPath(defaultOrigin),
+].filter((origin) => origin !== joinApiPath(primaryOrigin)));
 
-const FALLBACK_API_BASE_URL = shouldUseExpoFallback ? joinApiPath(expoHostOrigin) : '';
 const API_BASE_URL = joinApiPath(primaryOrigin);
 
 const api = axios.create({
@@ -104,18 +92,19 @@ api.interceptors.response.use(
     }
 
     const requestConfig = error.config || {};
-    const canRetryWithExpoHost =
+    const fallbackBaseUrl = FALLBACK_API_BASE_URLS.find(
+      (candidate) => candidate !== requestConfig.baseURL && !(requestConfig.__triedBaseUrls || []).includes(candidate)
+    );
+    const canRetryWithFallback =
       error.code === 'ERR_NETWORK' &&
       !error.response &&
-      FALLBACK_API_BASE_URL &&
-      !requestConfig.__retryWithExpoHost &&
-      requestConfig.baseURL !== FALLBACK_API_BASE_URL;
+      fallbackBaseUrl;
 
-    if (canRetryWithExpoHost) {
+    if (canRetryWithFallback) {
       return api.request({
         ...requestConfig,
-        __retryWithExpoHost: true,
-        baseURL: FALLBACK_API_BASE_URL,
+        __triedBaseUrls: [...(requestConfig.__triedBaseUrls || []), requestConfig.baseURL].filter(Boolean),
+        baseURL: fallbackBaseUrl,
       });
     }
 
@@ -133,5 +122,11 @@ export const getAttractions = () => api.get('/attractions').then((response) => r
 export const createBooking = (data) => api.post('/bookings', data).then((response) => response.data);
 export const getMyBookings = () => api.get('/bookings/my').then((response) => response.data);
 
-export const getStreamToken = (attractionId) => api.get(`/live-streams/streams/${attractionId}/token`).then((response) => response.data);
 export const getLiveStreams = () => api.get('/live-streams').then((response) => response.data);
+export const getLiveStream = (streamId) => api.get(`/live-streams/${streamId}`).then((response) => response.data);
+export const createLiveStream = (data) => api.post('/live-streams', data).then((response) => response.data);
+export const stopLiveStream = (streamId) => api.patch(`/live-streams/${streamId}`).then((response) => response.data);
+export const getLiveStreamSession = (streamId, role = 'subscriber') =>
+  api.get(`/live-streams/${streamId}/session`, { params: { role } }).then((response) => response.data);
+export const updateLiveStreamViewerPresence = (streamId, action) =>
+  api.post(`/live-streams/${streamId}/viewers`, { action }).then((response) => response.data);

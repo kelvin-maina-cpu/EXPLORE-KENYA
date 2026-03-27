@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+const SUPPORTED_LANGUAGE_CODES = ['en', 'sw', 'fr', 'es', 'de', 'zh', 'ar'];
+
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -26,7 +28,7 @@ const userSchema = new mongoose.Schema({
   preferences: {
     languages: {
       type: [String],
-      enum: ['en', 'sw'],
+      enum: SUPPORTED_LANGUAGE_CODES,
       default: ['en']
     },
     interests: {

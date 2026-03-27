@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { useLocale } from '../../context/LocalizationContext';
+import { AVAILABLE_LANGUAGES, useLocale } from '../../context/LocalizationContext';
 
 const availableInterests = ['wildlife', 'culture', 'adventure', 'history'];
 
@@ -36,6 +36,11 @@ export default function ProfileScreen() {
   }, [language, user]);
 
   const activeLanguage = useMemo(() => form.languages?.[0] || language || 'en', [form.languages, language]);
+  const formatInterestLabel = (value) => {
+    const key = `category_${value}`;
+    const translated = t(key);
+    return translated === key ? value : translated;
+  };
 
   const toggleInterest = (interest) => {
     setForm((current) => ({
@@ -58,7 +63,7 @@ export default function ProfileScreen() {
     });
 
     if (!result.success) {
-      Alert.alert('Error', result.error);
+      Alert.alert(t('error'), result.error);
       return;
     }
 
@@ -108,16 +113,30 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>{t('language')}</Text>
           <View style={styles.optionRow}>
-            {['en', 'sw'].map((item) => {
-              const active = activeLanguage === item;
+            {AVAILABLE_LANGUAGES.map((item) => {
+              const active = activeLanguage === item.code;
               return (
                 <TouchableOpacity
-                  key={item}
+                  key={item.code}
                   style={[styles.optionChip, active && styles.optionChipActive]}
-                  onPress={() => setForm((current) => ({ ...current, languages: [item] }))}
+                  onPress={() => setForm((current) => ({ ...current, languages: [item.code] }))}
                 >
                   <Text style={[styles.optionText, active && styles.optionTextActive]}>
-                    {item === 'en' ? 'English' : 'Swahili'}
+                    {t(
+                      item.code === 'en'
+                        ? 'language_english'
+                        : item.code === 'sw'
+                          ? 'language_swahili'
+                          : item.code === 'fr'
+                            ? 'language_french'
+                            : item.code === 'es'
+                              ? 'language_spanish'
+                              : item.code === 'de'
+                                ? 'language_german'
+                                : item.code === 'zh'
+                                  ? 'language_chinese'
+                                  : 'language_arabic'
+                    )}
                   </Text>
                 </TouchableOpacity>
               );
@@ -136,7 +155,9 @@ export default function ProfileScreen() {
                   style={[styles.optionChip, active && styles.optionChipActive]}
                   onPress={() => toggleInterest(interest)}
                 >
-                  <Text style={[styles.optionText, active && styles.optionTextActive]}>{interest}</Text>
+                  <Text style={[styles.optionText, active && styles.optionTextActive]}>
+                    {formatInterestLabel(interest)}
+                  </Text>
                 </TouchableOpacity>
               );
             })}

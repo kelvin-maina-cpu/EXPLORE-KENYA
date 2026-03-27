@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View }
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getMyBookings } from '../../services/api';
+import { useLocale } from '../../context/LocalizationContext';
 
 const STATUS_COLORS = {
   paid: { bg: '#E1F5EE', text: '#0F6E56' },
@@ -12,6 +13,7 @@ const STATUS_COLORS = {
 
 export default function BookingsScreen() {
   const router = useRouter();
+  const { t } = useLocale();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,12 +37,18 @@ export default function BookingsScreen() {
   const renderBooking = ({ item }) => {
     const status = item.paymentStatus || 'pending';
     const colors = STATUS_COLORS[status] || STATUS_COLORS.pending;
+    const statusLabel =
+      status === 'paid'
+        ? t('status_paid')
+        : status === 'failed'
+          ? t('status_failed')
+          : t('status_pending');
 
     return (
       <View style={styles.card}>
         <View style={styles.cardTop}>
           <View>
-            <Text style={styles.cardTitle}>{item.attractionId?.name || 'Attraction'}</Text>
+            <Text style={styles.cardTitle}>{item.attractionId?.name || t('bookings_attraction')}</Text>
             <Text style={styles.cardDate}>
               {new Date(item.date).toLocaleDateString('en-KE', {
                 weekday: 'short',
@@ -52,7 +60,7 @@ export default function BookingsScreen() {
           </View>
           <View style={[styles.statusBadge, { backgroundColor: colors.bg }]}>
             <Text style={[styles.statusText, { color: colors.text }]}>
-              {status.charAt(0).toUpperCase() + status.slice(1)}
+              {statusLabel}
             </Text>
           </View>
         </View>
@@ -61,22 +69,22 @@ export default function BookingsScreen() {
 
         <View style={styles.cardDetails}>
           <View style={styles.detail}>
-            <Text style={styles.detailLabel}>Package</Text>
+            <Text style={styles.detailLabel}>{t('bookings_package')}</Text>
             <Text style={styles.detailValue}>{item.package}</Text>
           </View>
           <View style={styles.detail}>
-            <Text style={styles.detailLabel}>Visitors</Text>
+            <Text style={styles.detailLabel}>{t('bookings_visitors')}</Text>
             <Text style={styles.detailValue}>{item.participants}</Text>
           </View>
           <View style={styles.detail}>
-            <Text style={styles.detailLabel}>Total</Text>
+            <Text style={styles.detailLabel}>{t('bookings_total')}</Text>
             <Text style={styles.detailValue}>KES {item.totalAmount?.toLocaleString()}</Text>
           </View>
         </View>
 
         {item.mpesaReceiptNumber ? (
           <View style={styles.receipt}>
-            <Text style={styles.receiptText}>M-Pesa receipt: {item.mpesaReceiptNumber}</Text>
+            <Text style={styles.receiptText}>{t('bookings_receipt')}: {item.mpesaReceiptNumber}</Text>
           </View>
         ) : null}
       </View>
@@ -86,9 +94,9 @@ export default function BookingsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Bookings</Text>
+        <Text style={styles.headerTitle}>{t('bookings_title')}</Text>
         <TouchableOpacity onPress={() => router.push('/(tabs)')}>
-          <Text style={styles.newBooking}>+ New</Text>
+          <Text style={styles.newBooking}>{t('bookings_new')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -97,10 +105,10 @@ export default function BookingsScreen() {
       ) : bookings.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>{'\u{1F4CB}'}</Text>
-          <Text style={styles.emptyTitle}>No bookings yet</Text>
-          <Text style={styles.emptyDesc}>Explore attractions and make your first booking.</Text>
+          <Text style={styles.emptyTitle}>{t('bookings_none_title')}</Text>
+          <Text style={styles.emptyDesc}>{t('bookings_none_desc')}</Text>
           <TouchableOpacity style={styles.exploreBtn} onPress={() => router.push('/(tabs)')}>
-            <Text style={styles.exploreBtnText}>Explore attractions</Text>
+            <Text style={styles.exploreBtnText}>{t('bookings_explore_cta')}</Text>
           </TouchableOpacity>
         </View>
       ) : (

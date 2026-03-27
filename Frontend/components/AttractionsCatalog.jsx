@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocale } from '../context/LocalizationContext';
 import { getAttractions } from '../services/api';
 
 const CATEGORY_ICONS = {
@@ -26,6 +27,7 @@ const FILTERS = ['all', 'wildlife', 'culture', 'cultural', 'adventure', 'beach',
 
 export default function AttractionsCatalog() {
   const router = useRouter();
+  const { t } = useLocale();
   const [attractions, setAttractions] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -69,6 +71,12 @@ export default function AttractionsCatalog() {
     return results;
   }, [activeFilter, attractions, search]);
 
+  const formatFilterLabel = (value) => {
+    const key = `category_${value}`;
+    const translated = t(key);
+    return translated === key ? value.charAt(0).toUpperCase() + value.slice(1) : translated;
+  };
+
   const renderCard = ({ item }) => (
     <TouchableOpacity style={styles.card} onPress={() => router.push(`/attraction/${item._id}`)}>
       <View style={styles.cardImg}>
@@ -81,9 +89,9 @@ export default function AttractionsCatalog() {
         </Text>
         <View style={styles.cardFooter}>
           <View style={styles.tag}>
-            <Text style={styles.tagText}>{item.category || 'wildlife'}</Text>
+            <Text style={styles.tagText}>{formatFilterLabel((item.category || 'wildlife').toLowerCase())}</Text>
           </View>
-          <Text style={styles.viewMore}>View {'->'}</Text>
+          <Text style={styles.viewMore}>{t('catalog_view_more')} {'->'}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -93,7 +101,7 @@ export default function AttractionsCatalog() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Good morning {'\u{1F44B}'}</Text>
+          <Text style={styles.greeting}>{t('catalog_greeting')} {'\u{1F44B}'}</Text>
           <Text style={styles.headerTitle}>Explore Kenya</Text>
         </View>
         <TouchableOpacity style={styles.profileBtn} onPress={() => router.push('/(tabs)/bookings')}>
@@ -105,7 +113,7 @@ export default function AttractionsCatalog() {
         <Text style={styles.searchIcon}>{'\u{1F50D}'}</Text>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search attractions..."
+          placeholder={t('catalog_search_placeholder')}
           placeholderTextColor="#999999"
           value={search}
           onChangeText={setSearch}
@@ -124,7 +132,7 @@ export default function AttractionsCatalog() {
               onPress={() => setActiveFilter(item)}
             >
               <Text style={[styles.filterText, activeFilter === item && styles.filterTextActive]}>
-                {item.charAt(0).toUpperCase() + item.slice(1)}
+                {formatFilterLabel(item)}
               </Text>
             </TouchableOpacity>
           )}
@@ -140,7 +148,7 @@ export default function AttractionsCatalog() {
           keyExtractor={(item) => item._id}
           renderItem={renderCard}
           contentContainerStyle={styles.list}
-          ListEmptyComponent={<Text style={styles.empty}>No attractions found.</Text>}
+          ListEmptyComponent={<Text style={styles.empty}>{t('catalog_empty')}</Text>}
           showsVerticalScrollIndicator={false}
         />
       )}

@@ -17,7 +17,7 @@ export default function Login() {
     if (result.success) {
       router.replace('/');
     } else {
-      Alert.alert('Error', result.error);
+      Alert.alert(t('error'), result.error);
     }
   };
 
@@ -30,20 +30,20 @@ export default function Login() {
       </View>
 
       <View style={styles.formCard}>
-        <Text style={styles.label}>Email</Text>
+        <Text style={styles.label}>{t('email')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter your email"
+          placeholder={t('auth_enter_email')}
           placeholderTextColor="#999"
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
         />
-        <Text style={styles.label}>Password</Text>
+        <Text style={styles.label}>{t('password')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter your password"
+          placeholder={t('auth_enter_password')}
           placeholderTextColor="#999"
           value={password}
           onChangeText={setPassword}

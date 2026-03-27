@@ -17,12 +17,12 @@ export default function ResetPasswordScreen() {
 
   const handleReset = async () => {
     if (!email.trim() || !code.trim() || !newPassword.trim()) {
-      Alert.alert('Error', 'Please complete all required fields.');
+      Alert.alert(t('error'), t('reset_required_fields'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'Password confirmation does not match.');
+      Alert.alert(t('error'), t('reset_password_mismatch'));
       return;
     }
 
@@ -33,11 +33,11 @@ export default function ResetPasswordScreen() {
     });
 
     if (!result.success) {
-      Alert.alert('Error', result.error);
+      Alert.alert(t('error'), result.error);
       return;
     }
 
-    Alert.alert(t('reset_success'), result.message, [{ text: 'Login', onPress: () => router.replace('/login') }]);
+    Alert.alert(t('reset_success'), result.message, [{ text: t('login_cta'), onPress: () => router.replace('/login') }]);
   };
 
   return (

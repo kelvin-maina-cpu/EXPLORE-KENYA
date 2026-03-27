@@ -55,9 +55,9 @@ export default function WildlifeScreen() {
           <View style={styles.card}>
             <Text style={styles.title}>{item.speciesName}</Text>
             <Text style={styles.region}>{item.region}</Text>
-            <Text style={styles.sectionLabel}>Habitat</Text>
+            <Text style={styles.sectionLabel}>{t('wildlife_habitat')}</Text>
             <Text style={styles.copy}>{item.habitat}</Text>
-            <Text style={styles.sectionLabel}>Conservation</Text>
+            <Text style={styles.sectionLabel}>{t('wildlife_conservation')}</Text>
             <Text style={styles.copy}>{item.conservationInfo}</Text>
           </View>
         )}
@@ -76,14 +76,14 @@ export default function WildlifeScreen() {
               style={styles.searchInput}
               value={search}
               onChangeText={setSearch}
-              placeholder="Search wildlife or region"
+              placeholder={t('wildlife_search_placeholder')}
             />
           </View>
         }
         ListEmptyComponent={
           <View style={styles.loadingCard}>
             {loading ? <ActivityIndicator size="large" color="#264E86" /> : null}
-            <Text style={styles.loadingText}>{loading ? t('loading') : 'No wildlife records found.'}</Text>
+            <Text style={styles.loadingText}>{loading ? t('loading') : t('wildlife_empty')}</Text>
           </View>
         }
         contentContainerStyle={styles.content}

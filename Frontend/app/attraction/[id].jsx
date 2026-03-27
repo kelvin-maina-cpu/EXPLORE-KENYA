@@ -1,192 +1,200 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { createBooking, getAttraction } from '../../services/api';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { getAttraction } from '../../services/api';
+import { useLocale } from '../../context/LocalizationContext';
 
-export default function AttractionDetail() {
+const CATEGORY_ICONS = {
+  wildlife: 'paw-outline',
+  culture: 'library-outline',
+  cultural: 'library-outline',
+  adventure: 'compass-outline',
+  beach: 'sunny-outline',
+  history: 'time-outline',
+  historical: 'time-outline',
+};
+
+const formatCurrency = (amount) => `KES ${Number(amount || 0).toLocaleString('en-KE')}`;
+
+export default function AttractionDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { t } = useLocale();
   const [attraction, setAttraction] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [booking, setBooking] = useState(false);
-  const [phone, setPhone] = useState('');
-  const [participants, setParticipants] = useState('1');
-  const [selectedPkg, setSelectedPkg] = useState('day-trip');
-
-  const packages = [
-    { id: 'day-trip', label: 'Day trip', price: 2500 },
-    { id: 'weekend', label: 'Weekend', price: 8000 },
-    { id: 'full-week', label: 'Full week', price: 25000 },
-  ];
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchAttraction = async () => {
+    const loadAttraction = async () => {
       try {
+        setLoading(true);
+        setError('');
         const data = await getAttraction(id);
         setAttraction(data);
-      } catch (error) {
-        Alert.alert('Error', 'Could not load attraction');
+      } catch (loadError) {
+        console.error('Attraction details error:', loadError);
+        setError(loadError.response?.data?.message || loadError.message || t('attraction_unavailable'));
       } finally {
         setLoading(false);
       }
     };
 
     if (id) {
-      void fetchAttraction();
+      void loadAttraction();
+    } else {
+      setError(t('attraction_unavailable'));
+      setLoading(false);
     }
-  }, [id]);
+  }, [id, t]);
 
-  const parsedParticipants = useMemo(
-    () => Math.max(1, Number.parseInt(participants || '1', 10) || 1),
-    [participants]
-  );
-  const selectedPackage = packages.find((pkg) => pkg.id === selectedPkg);
-  const total = selectedPackage ? selectedPackage.price * parsedParticipants : 0;
+  const coordinates = attraction?.location?.coordinates;
+  const latitude = coordinates?.length >= 2 ? coordinates[1] : null;
+  const longitude = coordinates?.length >= 2 ? coordinates[0] : null;
 
-  const handleBook = async () => {
-    if (!phone.trim()) {
-      Alert.alert('Phone required', 'Please enter your M-Pesa phone number');
-      return;
-    }
+  const residentFee = useMemo(() => attraction?.entryFee?.resident ?? 0, [attraction]);
+  const nonResidentFee = useMemo(() => attraction?.entryFee?.nonResident ?? 0, [attraction]);
+  const category = attraction?.category || 'wildlife';
+  const categoryIcon = CATEGORY_ICONS[category.toLowerCase()] || 'leaf-outline';
 
-    setBooking(true);
-    try {
-      await createBooking({
-        attractionId: id,
-        package: selectedPkg,
-        date: new Date().toISOString(),
-        participants: parsedParticipants,
-        paymentMethod: 'mpesa',
-        totalAmount: total,
-        phoneNumber: phone.trim(),
-      });
+  const openBooking = () => {
+    router.push({
+      pathname: '/checkout/card',
+      params: {
+        attractionId: String(attraction?._id || id || ''),
+        attractionName: String(attraction?.name || t('map_destination_label')),
+        package: 'day-tour',
+        date: new Date().toISOString().split('T')[0],
+        participants: '1',
+        phoneNumber: '',
+        totalAmount: String(nonResidentFee || residentFee || 0),
+        totalLabel: String(nonResidentFee || residentFee || 0),
+      },
+    });
+  };
 
-      Alert.alert('Booking confirmed!', 'Check your phone for the M-Pesa payment prompt.', [
-        {
-          text: 'View bookings',
-          onPress: () => router.push('/(tabs)/bookings'),
-        },
-      ]);
-    } catch (error) {
-      Alert.alert('Booking failed', error.response?.data?.message || error.message || 'Please try again');
-    } finally {
-      setBooking(false);
-    }
+  const openGps = () => {
+    router.push({
+      pathname: `/map/${attraction?._id || id}`,
+      params: {
+        latitude: latitude !== null ? String(latitude) : '',
+        longitude: longitude !== null ? String(longitude) : '',
+        name: attraction?.name || 'Destination',
+        description: attraction?.description || '',
+      },
+    });
+  };
+
+  const openGoLive = () => {
+    router.push({
+      pathname: `/broadcast/${attraction?._id || id}`,
+      params: {
+        attractionName: attraction?.name || t('broadcast_park_camera'),
+      },
+    });
   };
 
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingScreen}>
         <ActivityIndicator size="large" color="#0F6E56" />
+        <Text style={styles.loadingText}>{t('attraction_loading')}</Text>
       </SafeAreaView>
     );
   }
 
-  if (!attraction) {
+  if (error || !attraction) {
     return (
-      <SafeAreaView style={styles.loadingScreen}>
-        <Text style={styles.notFound}>Not found</Text>
+      <SafeAreaView style={styles.errorScreen}>
+        <View style={styles.errorCard}>
+          <Text style={styles.errorTitle}>{t('attraction_unavailable')}</Text>
+          <Text style={styles.errorText}>{error || t('attraction_not_found')}</Text>
+          <TouchableOpacity style={styles.backPrimary} onPress={() => router.back()}>
+            <Text style={styles.backPrimaryText}>{t('attraction_back_to_list')}</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <View style={styles.hero}>
-          <TouchableOpacity style={styles.back} onPress={() => router.back()}>
-            <Text style={styles.backText}>{'\u2190'} Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.heroEmoji}>{'\u{1F33F}'}</Text>
-          <Text style={styles.heroTitle}>{attraction.name}</Text>
+    <SafeAreaView style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        <View style={styles.heroCard}>
           <View style={styles.heroBadge}>
-            <Text style={styles.heroBadgeText}>{attraction.category || 'Wildlife'}</Text>
+            <Ionicons name={categoryIcon} size={18} color="#173457" />
+            <Text style={styles.heroBadgeText}>{category}</Text>
+          </View>
+          <Text style={styles.heroTitle}>{attraction.name}</Text>
+          <Text style={styles.heroCopy}>{attraction.description || t('attraction_discover_copy')}</Text>
+        </View>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>{t('attraction_resident_fee')}</Text>
+            <Text style={styles.statValue}>{formatCurrency(residentFee)}</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>{t('attraction_nonresident_fee')}</Text>
+            <Text style={styles.statValue}>{formatCurrency(nonResidentFee)}</Text>
           </View>
         </View>
 
-        <View style={styles.body}>
-          <Text style={styles.sectionTitle}>About</Text>
-          <Text style={styles.description}>{attraction.description}</Text>
+        <View style={styles.actionCard}>
+          <Text style={styles.sectionTitle}>{t('attraction_quick_actions')}</Text>
 
-          <Text style={styles.sectionTitle}>Choose package</Text>
-          <View style={styles.packages}>
-            {packages.map((pkg) => (
-              <TouchableOpacity
-                key={pkg.id}
-                style={[styles.pkg, selectedPkg === pkg.id && styles.pkgActive]}
-                onPress={() => setSelectedPkg(pkg.id)}
-              >
-                <Text style={[styles.pkgLabel, selectedPkg === pkg.id && styles.pkgLabelActive]}>
-                  {pkg.label}
-                </Text>
-                <Text style={[styles.pkgPrice, selectedPkg === pkg.id && styles.pkgPriceActive]}>
-                  KES {pkg.price.toLocaleString()}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.sectionTitle}>Participants</Text>
-          <View style={styles.participantsRow}>
-            <TouchableOpacity
-              style={styles.counter}
-              onPress={() => setParticipants(String(Math.max(1, parsedParticipants - 1)))}
-            >
-              <Text style={styles.counterText}>-</Text>
-            </TouchableOpacity>
-            <Text style={styles.participantNum}>{parsedParticipants}</Text>
-            <TouchableOpacity style={styles.counter} onPress={() => setParticipants(String(parsedParticipants + 1))}>
-              <Text style={styles.counterText}>+</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.mpesaBox}>
-            <View style={styles.mpesaHeader}>
-              <Text style={styles.mpesaBadge}>M-Pesa</Text>
-              <Text style={styles.mpesaTitle}>Pay with M-Pesa</Text>
+          <TouchableOpacity style={styles.primaryAction} onPress={openBooking}>
+            <Ionicons name="card-outline" size={20} color="#FFFFFF" />
+            <View style={styles.actionCopy}>
+              <Text style={styles.primaryActionTitle}>{t('attraction_book_now')}</Text>
+              <Text style={styles.primaryActionText}>{t('attraction_book_copy')}</Text>
             </View>
-            <TextInput
-              style={styles.phoneInput}
-              placeholder="07XX XXX XXX"
-              placeholderTextColor="#999999"
-              keyboardType="phone-pad"
-              value={phone}
-              onChangeText={setPhone}
-            />
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total amount</Text>
-              <Text style={styles.totalAmount}>KES {total.toLocaleString()}</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.bookBtn, booking && styles.bookBtnDisabled]}
-            onPress={handleBook}
-            disabled={booking}
-          >
-            {booking ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.bookBtnText}>Book now with M-Pesa</Text>}
           </TouchableOpacity>
 
-          {/* Admin only — broadcast button */}
-          <TouchableOpacity
-            style={styles.broadcastBtn}
-            onPress={() => router.push({
-              pathname: `/broadcast/${id}`,
-              params: { attractionName: attraction.name }
-            })}
-          >
-            <Text style={styles.broadcastBtnText}>🔴 Start Live Camera</Text>
+          <TouchableOpacity style={styles.secondaryAction} onPress={openGoLive}>
+            <Ionicons name="videocam-outline" size={20} color="#173457" />
+            <View style={styles.actionCopy}>
+              <Text style={styles.secondaryActionTitle}>{t('attraction_go_live')}</Text>
+              <Text style={styles.secondaryActionText}>{t('attraction_go_live_copy')}</Text>
+            </View>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.secondaryAction, (latitude === null || longitude === null) && styles.disabledAction]}
+            onPress={openGps}
+            disabled={latitude === null || longitude === null}
+          >
+            <Ionicons name="navigate-outline" size={20} color="#173457" />
+            <View style={styles.actionCopy}>
+              <Text style={styles.secondaryActionTitle}>{t('attraction_gps_navigation')}</Text>
+              <Text style={styles.secondaryActionText}>
+                {latitude === null || longitude === null
+                  ? t('attraction_gps_missing')
+                  : t('attraction_gps_copy')}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.detailsCard}>
+          <Text style={styles.sectionTitle}>{t('attraction_location')}</Text>
+          <Text style={styles.detailsText}>
+            {latitude !== null && longitude !== null
+              ? `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
+              : t('attraction_coords_missing')}
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -194,216 +202,199 @@ export default function AttractionDetail() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  screen: {
     flex: 1,
-    backgroundColor: '#F8FFFE',
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FFFE',
+    backgroundColor: '#F7F1E8',
   },
   content: {
-    paddingBottom: 40,
+    padding: 18,
+    paddingBottom: 28,
+    gap: 16,
   },
-  loadingScreen: {
-    flex: 1,
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8FFFE',
+    backgroundColor: '#173457',
   },
-  notFound: {
-    textAlign: 'center',
-    color: '#1A1A1A',
-    fontSize: 16,
-  },
-  hero: {
-    backgroundColor: '#0F6E56',
-    padding: 24,
-    paddingTop: 52,
-    paddingBottom: 32,
-    alignItems: 'center',
-  },
-  back: {
-    position: 'absolute',
-    top: 52,
-    left: 20,
-  },
-  backText: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 15,
-  },
-  heroEmoji: {
-    fontSize: 56,
-    marginBottom: 12,
-  },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 8,
+  heroCard: {
+    backgroundColor: '#173457',
+    borderRadius: 28,
+    padding: 22,
   },
   heroBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-  },
-  heroBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-  },
-  body: {
-    padding: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  description: {
-    fontSize: 14,
-    color: '#555555',
-    lineHeight: 22,
-  },
-  packages: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  pkg: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  pkgActive: {
-    borderColor: '#0F6E56',
-    backgroundColor: '#E1F5EE',
-  },
-  pkgLabel: {
-    fontSize: 13,
-    color: '#666666',
-    marginBottom: 4,
-  },
-  pkgLabelActive: {
-    color: '#0F6E56',
-    fontWeight: '500',
-  },
-  pkgPrice: {
-    fontSize: 12,
-    color: '#999999',
-  },
-  pkgPriceActive: {
-    color: '#0F6E56',
-  },
-  participantsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
-  counter: {
-    backgroundColor: '#E1F5EE',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  counterText: {
-    fontSize: 20,
-    color: '#0F6E56',
-    fontWeight: '500',
-  },
-  participantNum: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    minWidth: 30,
-    textAlign: 'center',
-  },
-  mpesaBox: {
-    backgroundColor: '#E1F5EE',
-    borderRadius: 14,
-    padding: 16,
-    marginTop: 20,
-  },
-  mpesaHeader: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
+    backgroundColor: '#F7F1E8',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  mpesaBadge: {
-    backgroundColor: '#0F6E56',
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '600',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  mpesaTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#085041',
-  },
-  phoneInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 15,
-    color: '#1A1A1A',
-    marginBottom: 12,
-    borderWidth: 0.5,
-    borderColor: '#B0DDD0',
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  totalLabel: {
+  heroBadgeText: {
+    color: '#173457',
     fontSize: 13,
-    color: '#085041',
+    fontWeight: '800',
+    textTransform: 'capitalize',
   },
-  totalAmount: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#0F6E56',
+  heroTitle: {
+    marginTop: 16,
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
-  bookBtn: {
-    backgroundColor: '#0F6E56',
-    borderRadius: 14,
+  heroCopy: {
+    marginTop: 10,
+    fontSize: 15,
+    lineHeight: 23,
+    color: '#D4DDEC',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#D9E0EA',
     padding: 16,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#66707C',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  statValue: {
+    marginTop: 8,
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#1D2D45',
+  },
+  actionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#D9E0EA',
+    padding: 18,
+    gap: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#1D2D45',
+  },
+  primaryAction: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
+    gap: 12,
+    backgroundColor: '#0F6E56',
+    borderRadius: 18,
+    padding: 16,
   },
-  bookBtnDisabled: {
-    backgroundColor: '#5DCAA5',
+  secondaryAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFFDF9',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#D9E0EA',
   },
-  bookBtnText: {
+  disabledAction: {
+    opacity: 0.55,
+  },
+  actionCopy: {
+    flex: 1,
+  },
+  primaryActionTitle: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '900',
   },
-  broadcastBtn: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 14,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 40,
+  primaryActionText: {
+    marginTop: 4,
+    color: '#D9F2EB',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  secondaryActionTitle: {
+    color: '#173457',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  secondaryActionText: {
+    marginTop: 4,
+    color: '#66707C',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  detailsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#cc0000',
+    borderColor: '#D9E0EA',
+    padding: 18,
   },
-  broadcastBtnText: { 
-    color: '#cc0000', 
-    fontSize: 15, 
-    fontWeight: '600' 
+  detailsText: {
+    marginTop: 10,
+    fontSize: 15,
+    lineHeight: 23,
+    color: '#66707C',
+  },
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: '#F7F1E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 15,
+    color: '#173457',
+    fontWeight: '700',
+  },
+  errorScreen: {
+    flex: 1,
+    backgroundColor: '#F7F1E8',
+    padding: 20,
+    justifyContent: 'center',
+  },
+  errorCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#D9E0EA',
+    padding: 24,
+  },
+  errorTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#1D2D45',
+  },
+  errorText: {
+    marginTop: 10,
+    fontSize: 15,
+    lineHeight: 23,
+    color: '#66707C',
+  },
+  backPrimary: {
+    marginTop: 18,
+    backgroundColor: '#173457',
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  backPrimaryText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
   },
 });

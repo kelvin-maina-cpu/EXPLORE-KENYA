@@ -13,6 +13,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "agora-access-token": "^2.0.4",
+    "agora-token": "^2.0.5",
     "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",

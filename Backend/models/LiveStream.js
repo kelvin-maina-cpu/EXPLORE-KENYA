@@ -33,7 +33,28 @@ const liveStreamSchema = new mongoose.Schema(
     },
     streamUrl: {
       type: String,
+      default: '',
+      trim: true,
+    },
+    channelName: {
+      type: String,
       required: true,
+      trim: true,
+      maxlength: 120,
+    },
+    playbackType: {
+      type: String,
+      enum: ['external', 'agora'],
+      default: 'agora',
+    },
+    agoraAppId: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    agoraToken: {
+      type: String,
+      default: '',
       trim: true,
     },
     thumbnailUrl: {
@@ -48,8 +69,13 @@ const liveStreamSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['live', 'scheduled'],
+      enum: ['live', 'scheduled', 'ended'],
       default: 'live',
+    },
+    viewerCount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     hostUserId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -60,6 +86,14 @@ const liveStreamSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+    },
+    startedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    endedAt: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true }

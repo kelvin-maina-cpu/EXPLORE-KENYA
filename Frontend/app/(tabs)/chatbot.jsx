@@ -57,7 +57,7 @@ export default function ChatbotScreen() {
       const botMessage = {
         id: `${Date.now()}-bot`,
         role: 'bot',
-        text: response.data?.answer || 'No response available.',
+        text: response.data?.answer || t('chatbot_no_response'),
         matchedQuestion: response.data?.matchedQuestion || '',
       };
 
@@ -71,7 +71,7 @@ export default function ChatbotScreen() {
         {
           id: `${Date.now()}-error`,
           role: 'bot',
-          text: error.response?.data?.message || 'The assistant could not answer right now.',
+          text: error.response?.data?.message || t('chatbot_unavailable'),
         },
       ]);
     } finally {

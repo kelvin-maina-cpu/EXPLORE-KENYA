@@ -14,14 +14,14 @@ export default function ForgotPasswordScreen() {
   const handleRequestCode = async () => {
     const result = await requestPasswordReset(email.trim());
     if (!result.success) {
-      Alert.alert('Error', result.error);
+      Alert.alert(t('error'), result.error);
       return;
     }
 
     Alert.alert(
       t('reset_code_generated'),
       result.resetCode ? `${t('use_code_now')}: ${result.resetCode}` : result.message,
-      [{ text: 'Continue', onPress: () => router.push({ pathname: '/reset-password', params: { email } }) }]
+      [{ text: t('continue_button'), onPress: () => router.push({ pathname: '/reset-password', params: { email } }) }]
     );
   };
 
@@ -45,7 +45,7 @@ export default function ForgotPasswordScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.link}>Back</Text>
+          <Text style={styles.link}>{t('back')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

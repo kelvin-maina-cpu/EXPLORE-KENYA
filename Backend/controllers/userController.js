@@ -1,6 +1,9 @@
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
 
+const SUPPORTED_LANGUAGE_CODES = new Set(['en', 'sw', 'fr', 'es', 'de', 'zh', 'ar']);
+const SUPPORTED_INTERESTS = new Set(['wildlife', 'culture', 'adventure', 'history']);
+
 // @desc    Get user profile
 // @route   GET /api/users/profile
 // @access  Private
@@ -41,12 +44,26 @@ const updateUserProfile = asyncHandler(async (req, res) => {
   user.phoneNumber = phoneNumber?.trim() || user.phoneNumber;
 
   if (preferences) {
+    const sanitizedLanguages = Array.isArray(preferences.languages)
+      ? preferences.languages
+          .filter((value) => typeof value === 'string')
+          .map((value) => value.trim().toLowerCase())
+          .filter((value) => SUPPORTED_LANGUAGE_CODES.has(value))
+      : [];
+
+    const sanitizedInterests = Array.isArray(preferences.interests)
+      ? preferences.interests
+          .filter((value) => typeof value === 'string')
+          .map((value) => value.trim().toLowerCase())
+          .filter((value) => SUPPORTED_INTERESTS.has(value))
+      : null;
+
     user.preferences = {
-      languages: Array.isArray(preferences.languages) && preferences.languages.length
-        ? preferences.languages
+      languages: sanitizedLanguages.length
+        ? sanitizedLanguages
         : user.preferences?.languages || ['en'],
-      interests: Array.isArray(preferences.interests)
-        ? preferences.interests
+      interests: sanitizedInterests
+        ? sanitizedInterests
         : user.preferences?.interests || [],
     };
   }

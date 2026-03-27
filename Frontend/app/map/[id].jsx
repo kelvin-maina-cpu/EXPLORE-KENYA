@@ -3,16 +3,19 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
+import { useLocale } from '../../context/LocalizationContext';
 import api from '../../services/api';
 
 const DEFAULT_REGION = {
@@ -23,7 +26,6 @@ const DEFAULT_REGION = {
 };
 
 const ARRIVAL_THRESHOLD_METERS = 80;
-
 const toRadians = (value) => (value * Math.PI) / 180;
 
 const calculateDistanceMeters = (pointA, pointB) => {
@@ -74,36 +76,24 @@ const formatDuration = (seconds) => {
 
 const formatRoadName = (step) => {
   const roadName = step?.name?.trim();
-  return roadName ? ` onto ${roadName}` : '';
+  return roadName || '';
 };
 
-const buildInstruction = (step) => {
+const buildInstruction = (step, t) => {
   const maneuver = step?.maneuver || {};
-  const modifier = maneuver.modifier ? `${maneuver.modifier} ` : '';
   const roadName = formatRoadName(step);
 
-  switch (maneuver.type) {
-    case 'depart':
-      return `Start on your route${roadName}.`;
-    case 'turn':
-      return `Turn ${modifier.trim() || 'ahead'}${roadName}.`;
-    case 'continue':
-      return `Continue ${modifier}${roadName || 'on the current road'}.`;
-    case 'new name':
-      return `Continue as the road changes${roadName}.`;
-    case 'fork':
-      return `Keep ${modifier.trim() || 'ahead'}${roadName}.`;
-    case 'roundabout':
-      return `Enter the roundabout${roadName}.`;
-    case 'merge':
-      return `Merge ${modifier.trim() || 'ahead'}${roadName}.`;
-    case 'end of road':
-      return `At the end of the road, turn ${modifier.trim() || 'ahead'}${roadName}.`;
-    case 'arrive':
-      return 'You are about to arrive at your destination.';
-    default:
-      return roadName ? `Continue${roadName}.` : 'Continue on the route.';
+  if (maneuver.type === 'arrive') {
+    return t('map_instruction_arrive');
   }
+
+  if (maneuver.type === 'depart') {
+    return t('map_instruction_start');
+  }
+
+  return roadName
+    ? `${t('map_instruction_follow_road')} ${roadName}.`
+    : t('map_instruction_follow_route');
 };
 
 const getStepPoint = (step) => {
@@ -118,10 +108,34 @@ const getStepPoint = (step) => {
   };
 };
 
+const isLocationSettingsError = (error) => {
+  const message = error?.message?.toLowerCase?.() || '';
+  return (
+    error?.code === 'E_LOCATION_SETTINGS_UNSATISFIED' ||
+    message.includes('unsatisfied device settings') ||
+    message.includes('location settings') ||
+    message.includes('location request failed') ||
+    message.includes('current location is unavailable') ||
+    message.includes('location is unavailable')
+  );
+};
+
+const getLastKnownUserPosition = async () => {
+  const lastKnownPosition = await Location.getLastKnownPositionAsync();
+  if (!lastKnownPosition?.coords) {
+    return null;
+  }
+
+  return {
+    latitude: lastKnownPosition.coords.latitude,
+    longitude: lastKnownPosition.coords.longitude,
+  };
+};
+
 export default function AttractionMapScreen() {
   const { id, latitude, longitude, name, description } = useLocalSearchParams();
   const router = useRouter();
-  const mapRef = useRef(null);
+  const { t } = useLocale();
   const locationSubscriptionRef = useRef(null);
   const routeRefreshInFlightRef = useRef(false);
   const lastRouteRefreshRef = useRef(0);
@@ -144,6 +158,43 @@ export default function AttractionMapScreen() {
       locationSubscriptionRef.current?.remove();
     };
   }, []);
+
+  const getInitialUserPosition = async () => {
+    const servicesEnabled = await Location.hasServicesEnabledAsync();
+
+    if (!servicesEnabled && Platform.OS === 'android') {
+      try {
+        await Location.enableNetworkProviderAsync();
+      } catch (error) {
+        if (!isLocationSettingsError(error)) {
+          throw error;
+        }
+      }
+    }
+
+    try {
+      const currentPosition = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      return {
+        latitude: currentPosition.coords.latitude,
+        longitude: currentPosition.coords.longitude,
+      };
+    } catch (error) {
+      if (!isLocationSettingsError(error)) {
+        throw error;
+      }
+
+      const lastKnownPosition = await getLastKnownUserPosition();
+      if (!lastKnownPosition) {
+        throw error;
+      }
+
+      setNavigationError(`${t('map_location_settings')} ${t('map_using_last_known')}`);
+      return lastKnownPosition;
+    }
+  };
 
   const requestedDestination = useMemo(() => {
     const rawLatitude = Array.isArray(latitude) ? latitude[0] : latitude;
@@ -185,12 +236,12 @@ export default function AttractionMapScreen() {
 
   const destinationName = useMemo(() => {
     const routeName = Array.isArray(name) ? name[0] : name;
-    return routeName || attraction?.name || 'Destination Map';
+      return routeName || attraction?.name || t('map_destination_label');
   }, [attraction?.name, name]);
 
   const destinationDescription = useMemo(() => {
     const routeDescription = Array.isArray(description) ? description[0] : description;
-    return routeDescription || attraction?.description || 'Wildlife destination';
+    return routeDescription || attraction?.description || t('attraction_discover_copy');
   }, [attraction?.description, description]);
 
   const region = useMemo(() => {
@@ -252,16 +303,6 @@ export default function AttractionMapScreen() {
       return;
     }
 
-    if (!routeCoordinates.length) {
-      mapRef.current?.animateCamera(
-        {
-          center: userLocation,
-          zoom: 15.2,
-        },
-        { duration: 700 }
-      );
-    }
-
     if (!routeSteps.length) {
       return;
     }
@@ -302,8 +343,8 @@ export default function AttractionMapScreen() {
       } else {
         setAttraction((current) => current || {
           _id: String(Array.isArray(id) ? id[0] : id || ''),
-          name: Array.isArray(name) ? name[0] : name || 'Destination',
-          description: Array.isArray(description) ? description[0] : description || 'Wildlife destination',
+          name: Array.isArray(name) ? name[0] : name || t('map_destination_label'),
+          description: Array.isArray(description) ? description[0] : description || t('attraction_discover_copy'),
           location: {
             type: 'Point',
             coordinates: [requestedDestination.longitude, requestedDestination.latitude],
@@ -311,56 +352,89 @@ export default function AttractionMapScreen() {
         });
       }
 
+      setLoading(false);
+
       const permissionResponse = await Location.requestForegroundPermissionsAsync();
 
       if (permissionResponse.status === 'granted') {
-        const currentPosition = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        const initialPosition = {
-          latitude: currentPosition.coords.latitude,
-          longitude: currentPosition.coords.longitude,
-        };
+        try {
+          const initialPosition = await getInitialUserPosition();
+          setUserLocation(initialPosition);
+          void startLocationTracking();
 
-        setUserLocation(initialPosition);
-        await startLocationTracking();
+          const attractionCoordinates = requestedDestination
+            ? [requestedDestination.longitude, requestedDestination.latitude]
+            : attractionResponse?.data?.location?.coordinates;
 
-        const attractionCoordinates = requestedDestination
-          ? [requestedDestination.longitude, requestedDestination.latitude]
-          : attractionResponse?.data?.location?.coordinates;
+          if (attractionCoordinates?.length >= 2) {
+            void fetchRoute(initialPosition, {
+              latitude: attractionCoordinates[1],
+              longitude: attractionCoordinates[0],
+            });
+          }
+        } catch (locationError) {
+          if (isLocationSettingsError(locationError)) {
+            const lastKnownPosition = await getLastKnownUserPosition();
 
-        if (attractionCoordinates?.length >= 2) {
-          await fetchRoute(initialPosition, {
-            latitude: attractionCoordinates[1],
-            longitude: attractionCoordinates[0],
-          });
+            if (lastKnownPosition) {
+              setUserLocation(lastKnownPosition);
+              setNavigationError(`${t('map_location_settings')} ${t('map_using_last_known')}`);
+
+              const attractionCoordinates = requestedDestination
+                ? [requestedDestination.longitude, requestedDestination.latitude]
+                : attractionResponse?.data?.location?.coordinates;
+
+              if (attractionCoordinates?.length >= 2) {
+                void fetchRoute(lastKnownPosition, {
+                  latitude: attractionCoordinates[1],
+                  longitude: attractionCoordinates[0],
+                });
+              }
+            } else {
+              setNavigationError(t('map_location_settings'));
+            }
+          } else {
+            throw locationError;
+          }
         }
       } else {
-        setNavigationError('Location permission is required for in-app turn-by-turn guidance.');
+        setNavigationError(t('map_permission_required'));
       }
     } catch (error) {
       console.error('Map screen error:', error);
-      Alert.alert('Map unavailable', error.response?.data?.message || error.message || 'Could not load map data.');
+      Alert.alert(t('map_unavailable'), error.response?.data?.message || error.message || t('map_load_failed'));
     } finally {
       setLoading(false);
     }
   };
 
   const startLocationTracking = async () => {
-    locationSubscriptionRef.current?.remove();
-    locationSubscriptionRef.current = await Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 5000,
-        distanceInterval: 15,
-      },
-      (locationUpdate) => {
-        setUserLocation({
-          latitude: locationUpdate.coords.latitude,
-          longitude: locationUpdate.coords.longitude,
-        });
+    try {
+      locationSubscriptionRef.current?.remove();
+      locationSubscriptionRef.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 5000,
+          distanceInterval: 15,
+        },
+        (locationUpdate) => {
+          setNavigationError((currentError) =>
+            currentError.includes('last known position') ? '' : currentError
+          );
+          setUserLocation({
+            latitude: locationUpdate.coords.latitude,
+            longitude: locationUpdate.coords.longitude,
+          });
+        }
+      );
+    } catch (error) {
+      if (isLocationSettingsError(error)) {
+        setNavigationError(t('map_location_settings'));
+        return;
       }
-    );
+
+      throw error;
+    }
   };
 
   const fetchRoute = async (origin, endPoint) => {
@@ -383,7 +457,7 @@ export default function AttractionMapScreen() {
       const leg = route?.legs?.[0];
 
       if (!route || !leg?.steps?.length) {
-        throw new Error('No route could be generated for this destination.');
+        throw new Error(t('map_no_route'));
       }
 
       const points = route.geometry.coordinates.map(([longitude, latitude]) => ({
@@ -398,14 +472,9 @@ export default function AttractionMapScreen() {
         duration: route.duration || 0,
       });
       setCurrentStepIndex(0);
-
-      mapRef.current?.fitToCoordinates([origin, endPoint], {
-        edgePadding: { top: 120, right: 70, bottom: 180, left: 70 },
-        animated: true,
-      });
     } catch (error) {
       console.error('Route fetch error:', error);
-      setNavigationError(error.message || 'Could not load in-app directions.');
+      setNavigationError(error.message || t('map_load_failed'));
     } finally {
       routeRefreshInFlightRef.current = false;
       setRouteLoading(false);
@@ -414,7 +483,7 @@ export default function AttractionMapScreen() {
 
   const openExternalDirections = async () => {
     if (!destination) {
-      Alert.alert('Directions unavailable', 'No coordinates found for this attraction.');
+      Alert.alert(t('map_directions_unavailable'), t('map_no_coords'));
       return;
     }
 
@@ -422,11 +491,103 @@ export default function AttractionMapScreen() {
     const canOpen = await Linking.canOpenURL(url);
 
     if (!canOpen) {
-      Alert.alert('Directions unavailable', 'Could not open navigation on this device.');
+      Alert.alert(t('map_directions_unavailable'), t('map_open_failed'));
       return;
     }
 
     await Linking.openURL(url);
+  };
+
+  const getMapHtml = () => {
+    const center = userLocation || destination || DEFAULT_REGION;
+    const routePoints = routeCoordinates.length
+      ? routeCoordinates.map((point) => [point.latitude, point.longitude])
+      : [];
+    const fallbackLine =
+      !routePoints.length && userLocation && destination
+        ? [
+            [userLocation.latitude, userLocation.longitude],
+            [destination.latitude, destination.longitude],
+          ]
+        : [];
+
+    const safeDestinationName = String(destinationName || 'Destination')
+      .replace(/'/g, "\\'")
+      .replace(/"/g, '\\"');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          html, body, #map { width: 100%; height: 100%; }
+          body { background: #eef3f8; }
+        </style>
+      </head>
+      <body>
+        <div id="map"></div>
+        <script>
+          const map = L.map('map', { zoomControl: true, attributionControl: true });
+
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: 'OpenStreetMap'
+          }).addTo(map);
+
+          const destination = ${JSON.stringify(destination)};
+          const userLocation = ${JSON.stringify(userLocation)};
+          const routePoints = ${JSON.stringify(routePoints)};
+          const fallbackLine = ${JSON.stringify(fallbackLine)};
+          const bounds = [];
+
+          if (destination) {
+            L.marker([destination.latitude, destination.longitude])
+              .addTo(map)
+              .bindPopup('<b>${safeDestinationName}</b>');
+            bounds.push([destination.latitude, destination.longitude]);
+          }
+
+          if (userLocation) {
+            L.circleMarker([userLocation.latitude, userLocation.longitude], {
+              radius: 8,
+              color: '#24654B',
+              fillColor: '#24654B',
+              fillOpacity: 0.95,
+              weight: 2
+            }).addTo(map).bindPopup('${String(t('navigation_you_are_here')).replace(/'/g, "\\'").replace(/"/g, '\\"')}');
+            bounds.push([userLocation.latitude, userLocation.longitude]);
+          }
+
+          if (routePoints.length) {
+            L.polyline(routePoints, {
+              color: '#264E86',
+              weight: 5,
+              opacity: 0.95
+            }).addTo(map);
+            routePoints.forEach((point) => bounds.push(point));
+          } else if (fallbackLine.length) {
+            L.polyline(fallbackLine, {
+              color: '#264E86',
+              weight: 4,
+              opacity: 0.7,
+              dashArray: '10, 8'
+            }).addTo(map);
+            fallbackLine.forEach((point) => bounds.push(point));
+          }
+
+          if (bounds.length > 1) {
+            map.fitBounds(bounds, { padding: [35, 35] });
+          } else {
+            map.setView([${center.latitude}, ${center.longitude}], ${userLocation ? 13 : 9});
+          }
+        </script>
+      </body>
+      </html>
+    `;
   };
 
   if (loading) {
@@ -434,8 +595,8 @@ export default function AttractionMapScreen() {
       <SafeAreaView style={styles.loadingScreen}>
         <View style={styles.loadingCard}>
           <ActivityIndicator size="large" color="#264E86" />
-          <Text style={styles.loadingTitle}>Loading map</Text>
-          <Text style={styles.loadingCopy}>Preparing destination and GPS details.</Text>
+          <Text style={styles.loadingTitle}>{t('map_loading_title')}</Text>
+          <Text style={styles.loadingCopy}>{t('map_loading_copy')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -448,61 +609,48 @@ export default function AttractionMapScreen() {
           <Ionicons name="arrow-back" size={22} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{destinationName}</Text>
-        <Text style={styles.headerSubtitle}>In-app GPS guidance with a live route, distance, and next maneuver.</Text>
+        <Text style={styles.headerSubtitle}>{t('map_header_subtitle')}</Text>
       </View>
 
       <View style={styles.mapWrap}>
-        <MapView
-          ref={mapRef}
+        <WebView
           style={styles.map}
-          initialRegion={region}
-          showsUserLocation={Boolean(userLocation)}
-          showsCompass
-        >
-          {routeCoordinates.length ? (
-            <Polyline coordinates={routeCoordinates} strokeColor="#264E86" strokeWidth={5} />
-          ) : null}
-          {destination ? (
-            <Marker
-              coordinate={destination}
-              title={destinationName}
-              description={destinationDescription}
-              pinColor="#B24D34"
-            />
-          ) : null}
-          {userLocation ? <Marker coordinate={userLocation} title="Your location" pinColor="#24654B" /> : null}
-        </MapView>
+          source={{ html: getMapHtml() }}
+          javaScriptEnabled
+          domStorageEnabled
+          originWhitelist={['*']}
+        />
       </View>
 
       <View style={styles.infoPanel}>
         <View style={styles.infoHeader}>
-          <Text style={styles.infoTitle}>Turn-by-turn navigation</Text>
+          <Text style={styles.infoTitle}>{t('map_nav_title')}</Text>
           {routeLoading ? <ActivityIndicator size="small" color="#264E86" /> : null}
         </View>
 
         <View style={styles.statRow}>
           <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Remaining</Text>
+            <Text style={styles.statLabel}>{t('map_remaining')}</Text>
             <Text style={styles.statValue}>{formatDistance(remainingRoute.distance || remainingDistance)}</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statLabel}>ETA</Text>
+            <Text style={styles.statLabel}>{t('map_eta')}</Text>
             <Text style={styles.statValue}>{formatDuration(remainingRoute.duration || routeSummary.duration)}</Text>
           </View>
         </View>
 
         <View style={styles.instructionCard}>
-          <Text style={styles.instructionEyebrow}>Next instruction</Text>
+          <Text style={styles.instructionEyebrow}>{t('map_next_instruction')}</Text>
           <Text style={styles.instructionText}>
             {remainingDistance <= ARRIVAL_THRESHOLD_METERS
-              ? 'You have arrived near your destination.'
+              ? t('map_arrived')
               : nextStep
-                ? buildInstruction(nextStep)
-                : 'Route guidance will appear once the route loads.'}
+                ? buildInstruction(nextStep, t)
+                : t('map_route_appears')}
           </Text>
           {nextStep ? (
             <Text style={styles.instructionMeta}>
-              In {formatDistance(nextStep.distance)} | {formatDuration(nextStep.duration)}
+              {t('map_step_in')} {formatDistance(nextStep.distance)} | {formatDuration(nextStep.duration)}
             </Text>
           ) : null}
         </View>
@@ -511,8 +659,8 @@ export default function AttractionMapScreen() {
 
         <Text style={styles.infoText}>
           {destination
-            ? `Destination: ${destination.latitude.toFixed(5)}, ${destination.longitude.toFixed(5)}`
-            : 'Coordinates are not available for this attraction yet.'}
+            ? `${t('map_destination_label')}: ${destination.latitude.toFixed(5)}, ${destination.longitude.toFixed(5)}`
+            : t('map_coords_missing')}
         </Text>
 
         <TouchableOpacity
@@ -521,12 +669,12 @@ export default function AttractionMapScreen() {
           disabled={routeLoading || !userLocation || !destination}
         >
           <Ionicons name="navigate-outline" size={18} color="white" />
-          <Text style={styles.directionsText}>Refresh In-App Route</Text>
+          <Text style={styles.directionsText}>{t('map_refresh_route')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondaryBtn} onPress={openExternalDirections}>
           <Ionicons name="open-outline" size={18} color="#264E86" />
-          <Text style={styles.secondaryBtnText}>Open in Google Maps</Text>
+          <Text style={styles.secondaryBtnText}>{t('map_open_google')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

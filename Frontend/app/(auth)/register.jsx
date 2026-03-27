@@ -17,13 +17,22 @@ export default function Register() {
   const router = useRouter();
 
   const handleRegister = async () => {
-    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
-      Alert.alert('Error', 'Please complete your name, email, and password.');
+    const email = form.email.trim();
+    const password = form.password.trim();
+
+    if (!form.name.trim() || !email || !password) {
+      Alert.alert(t('error'), t('auth_register_missing'));
       return;
     }
 
-    if (form.password.trim().length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long.');
+    if (password.length < 6) {
+      Alert.alert(t('error'), t('auth_password_short'));
+      return;
+    }
+
+    const emailRegex = /^[\w.-]+@[\w.-]+\.\w{2,}$/i;
+    if (!emailRegex.test(email)) {
+      Alert.alert(t('error'), 'Please enter a valid email address');
       return;
     }
 
@@ -31,7 +40,12 @@ export default function Register() {
     if (result.success) {
       router.replace('/');
     } else {
-      Alert.alert('Error', result.error);
+      // Handle specific backend errors
+      let errorMsg = result.error || 'Registration failed';
+      if (result.errors && Array.isArray(result.errors)) {
+        errorMsg = result.errors.join('\\n');
+      }
+      Alert.alert(t('error'), errorMsg);
     }
   };
 
@@ -45,37 +59,37 @@ export default function Register() {
         </View>
 
         <View style={styles.formCard}>
-          <Text style={styles.label}>Full Name</Text>
+          <Text style={styles.label}>{t('full_name')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter your full name"
+            placeholder={t('auth_enter_full_name')}
             placeholderTextColor="#999"
             value={form.name}
             onChangeText={(text) => setForm((current) => ({ ...current, name: text }))}
           />
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('email')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter your email"
+            placeholder={t('auth_enter_email')}
             placeholderTextColor="#999"
             value={form.email}
             onChangeText={(text) => setForm((current) => ({ ...current, email: text }))}
             keyboardType="email-address"
             autoCapitalize="none"
           />
-          <Text style={styles.label}>Phone (M-Pesa)</Text>
+          <Text style={styles.label}>{t('auth_phone_mpesa')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="07XX XXX XXX"
+            placeholder={t('auth_phone_placeholder')}
             placeholderTextColor="#999"
             value={form.phoneNumber}
             onChangeText={(text) => setForm((current) => ({ ...current, phoneNumber: text }))}
             keyboardType="phone-pad"
           />
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t('password')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter your password"
+            placeholder={t('auth_enter_password')}
             placeholderTextColor="#999"
             value={form.password}
             onChangeText={(text) => setForm((current) => ({ ...current, password: text }))}

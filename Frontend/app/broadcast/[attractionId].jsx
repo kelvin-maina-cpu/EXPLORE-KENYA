@@ -2,105 +2,244 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
+  ScrollView,
   StyleSheet,
+  Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { getStreamToken } from '../../services/api';
+import { Camera } from 'expo-camera';
+import {
+  ClientRoleType,
+  RenderModeType,
+  RtcSurfaceView,
+  VideoSourceType,
+} from 'react-native-agora';
+import { createLiveStream, getLiveStreamSession, stopLiveStream } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { useLocale } from '../../context/LocalizationContext';
+import { configureAgoraRole, getAgoraEngine, releaseAgoraEngine } from '../../utils/agora';
+
+const { height } = Dimensions.get('window');
 
 export default function BroadcastScreen() {
   const { attractionId, attractionName } = useLocalSearchParams();
+  const normalizedAttractionId = Array.isArray(attractionId) ? attractionId[0] : attractionId;
+  const normalizedAttractionName = Array.isArray(attractionName) ? attractionName[0] : attractionName;
   const router = useRouter();
-  const engineRef = useRef(null);
+  const { user } = useAuth();
+  const { t } = useLocale();
+  const rtcEngineRef = useRef(null);
+  const timerRef = useRef(null);
+  const eventHandlerRef = useRef(null);
+  const stoppingRef = useRef(false);
+
   const [streaming, setStreaming] = useState(false);
   const [loading, setLoading] = useState(false);
   const [viewers, setViewers] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [cameraFront, setCameraFront] = useState(false);
-  const timerRef = useRef(null);
+  const [streamId, setStreamId] = useState('');
+  const [streamTitle, setStreamTitle] = useState('');
+  const [streamDesc, setStreamDesc] = useState('');
+  const [cameraEnabled, setCameraEnabled] = useState(true);
+  const [micEnabled, setMicEnabled] = useState(true);
+  const [joined, setJoined] = useState(false);
+  const [joinError, setJoinError] = useState('');
+  const [sessionInfo, setSessionInfo] = useState(null);
 
   useEffect(() => {
     return () => {
-      stopStream();
-      if (timerRef.current) clearInterval(timerRef.current);
+      void cleanupStreamingSession(false);
     };
   }, []);
 
-  const startStream = async () => {
+  const startDurationTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
+    timerRef.current = setInterval(() => {
+      setDuration((value) => value + 1);
+    }, 1000);
+  };
+
+  const stopDurationTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const unregisterAgoraEvents = () => {
+    if (rtcEngineRef.current && eventHandlerRef.current) {
+      rtcEngineRef.current.unregisterEventHandler(eventHandlerRef.current);
+      eventHandlerRef.current = null;
+    }
+  };
+
+  const leaveAgoraChannel = () => {
+    if (rtcEngineRef.current) {
+      try {
+        rtcEngineRef.current.leaveChannel();
+      } catch {
+        // Ignore cleanup errors during shutdown.
+      }
+    }
+  };
+
+  const cleanupStreamingSession = async (notifyBackend = true) => {
+    stopDurationTimer();
+    unregisterAgoraEvents();
+    leaveAgoraChannel();
+    releaseAgoraEngine();
+    rtcEngineRef.current = null;
+    setJoined(false);
+    setJoinError('');
+    setSessionInfo(null);
+
+    if (notifyBackend && streamId && !stoppingRef.current) {
+      stoppingRef.current = true;
+      try {
+        await stopLiveStream(streamId);
+      } catch {
+        // Best-effort stop; the host may have already ended the session.
+      } finally {
+        stoppingRef.current = false;
+      }
+    }
+
+    setStreaming(false);
+    setViewers(0);
+    setDuration(0);
+    setStreamId('');
+  };
+
+  const requestMediaPermissions = async () => {
+    const [cameraPermission, microphonePermission] = await Promise.all([
+      Camera.requestCameraPermissionsAsync(),
+      Camera.requestMicrophonePermissionsAsync(),
+    ]);
+
+    if (cameraPermission.status !== 'granted' || microphonePermission.status !== 'granted') {
+      throw new Error('Camera and microphone permissions are required to go live');
+    }
+  };
+
+  const registerBroadcasterEvents = () => {
+    const handler = {
+      onJoinChannelSuccess: () => {
+        setJoined(true);
+        setJoinError('');
+        setStreaming(true);
+        startDurationTimer();
+      },
+      onUserJoined: () => {
+        setViewers((value) => value + 1);
+      },
+      onUserOffline: () => {
+        setViewers((value) => Math.max(0, value - 1));
+      },
+      onError: (errorCode, message) => {
+        console.log('Agora broadcast error:', errorCode, message);
+        const resolvedMessage =
+          errorCode === 109 || errorCode === 110
+            ? 'Agora rejected the channel token. Restart the backend and try a fresh live session.'
+            : message || `Agora error: ${errorCode}`;
+        setJoinError(resolvedMessage);
+      },
+    };
+
+    rtcEngineRef.current.registerEventHandler(handler);
+    eventHandlerRef.current = handler;
+  };
+
+  const handleGoLive = async () => {
+    if (!streamTitle.trim()) {
+      Alert.alert(t('error') || 'Error', 'Please enter a stream title');
+      return;
+    }
+
+    let createdStreamId = '';
+
     try {
       setLoading(true);
+      await requestMediaPermissions();
 
-      const { token, channelName, appId } = await getStreamToken(attractionId);
+      const liveStream = await createLiveStream({
+        title: streamTitle.trim(),
+        description: streamDesc.trim() || streamTitle.trim(),
+        locationName: normalizedAttractionName || 'Kenya',
+        category: 'wildlife',
+        status: 'live',
+        ...(normalizedAttractionId && normalizedAttractionId !== 'general'
+          ? { attractionId: normalizedAttractionId }
+          : {}),
+      });
+      createdStreamId = liveStream._id;
 
-      const AgoraEngine = await import('react-native-agora');
-      const engine = AgoraEngine.createAgoraRtcEngine();
-
-      engine.initialize({ appId });
-      engine.enableVideo();
-      engine.enableAudio();
-
-      engine.addListener('onUserJoined', () => {
-        setViewers(v => v + 1);
+      const session = await getLiveStreamSession(liveStream._id, 'publisher');
+      setSessionInfo({
+        channelName: session.channelName,
+        uid: session.uid,
+        role: session.role,
+        hasToken: Boolean(session.token),
       });
 
-      engine.addListener('onUserOffline', () => {
-        setViewers(v => Math.max(0, v - 1));
-      });
+      if (!session.token) {
+        throw new Error('The backend did not return an Agora token for this live session');
+      }
 
-      // Set as broadcaster role
-      await engine.setClientRole(1);
-      await engine.startPreview();
+      const rtcEngine = getAgoraEngine(session.appId);
+      rtcEngineRef.current = rtcEngine;
+      unregisterAgoraEvents();
+      registerBroadcasterEvents();
+      setJoinError('');
 
-      await engine.joinChannel(token, channelName, 0, {
-        clientRoleType: 1, // Broadcaster
+      configureAgoraRole(rtcEngine, ClientRoleType.ClientRoleBroadcaster);
+      rtcEngine.enableLocalVideo(true);
+      rtcEngine.enableLocalAudio(true);
+      rtcEngine.startPreview();
+      rtcEngine.muteLocalVideoStream(!cameraEnabled);
+      rtcEngine.muteLocalAudioStream(!micEnabled);
+      rtcEngine.joinChannel(session.token || '', session.channelName, session.uid || 0, {
+        clientRoleType: ClientRoleType.ClientRoleBroadcaster,
         publishCameraTrack: true,
         publishMicrophoneTrack: true,
+        autoSubscribeAudio: true,
+        autoSubscribeVideo: true,
       });
 
-      engineRef.current = engine;
-      setStreaming(true);
-      setDuration(0);
-
-      // Start duration timer
-      timerRef.current = setInterval(() => {
-        setDuration(d => d + 1);
-      }, 1000);
-
+      setStreamId(liveStream._id);
     } catch (err) {
-      console.error('Start stream error:', err);
-      Alert.alert('Error', 'Failed to start stream: ' + err.message);
+      console.error('Broadcast start error:', err);
+      await cleanupStreamingSession(false);
+      if (createdStreamId) {
+        try {
+          await stopLiveStream(createdStreamId);
+        } catch {
+          // Ignore cleanup failure if the stream never fully started.
+        }
+      }
+      Alert.alert(
+        t('error') || 'Error',
+        err.response?.data?.message || err.message || t('broadcast_start_failed')
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const stopStream = async () => {
+  const handleStopStream = async () => {
     try {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      if (engineRef.current) {
-        await engineRef.current.stopPreview();
-        await engineRef.current.leaveChannel();
-        engineRef.current.release();
-        engineRef.current = null;
-      }
-      setStreaming(false);
-      setViewers(0);
-      setDuration(0);
-    } catch (err) {
-      console.error('Stop stream error:', err);
-    }
-  };
-
-  const flipCamera = async () => {
-    if (engineRef.current) {
-      await engineRef.current.switchCamera();
-      setCameraFront(f => !f);
+      setLoading(true);
+      await cleanupStreamingSession(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -108,261 +247,491 @@ export default function BroadcastScreen() {
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60);
     const s = secs % 60;
-    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    if (h > 0) {
+      return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  const toggleCamera = (value) => {
+    setCameraEnabled(value);
+    if (rtcEngineRef.current) {
+      rtcEngineRef.current.muteLocalVideoStream(!value);
+      rtcEngineRef.current.enableLocalVideo(value);
+    }
+  };
+
+  const toggleMicrophone = (value) => {
+    setMicEnabled(value);
+    if (rtcEngineRef.current) {
+      rtcEngineRef.current.muteLocalAudioStream(!value);
+      rtcEngineRef.current.enableLocalAudio(value);
+    }
+  };
+
+  const switchCamera = () => {
+    try {
+      rtcEngineRef.current?.switchCamera();
+    } catch (error) {
+      Alert.alert(t('error') || 'Error', error.message || 'Unable to switch camera');
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Camera preview area */}
-      <View style={styles.preview}>
-        {streaming ? (
-          <View style={styles.livePreview}>
-            {/* Agora renders video here natively */}
-            <Text style={styles.previewEmoji}>📸</Text>
-            <Text style={styles.previewText}>Camera broadcasting</Text>
-            <Text style={styles.previewSub}>
-              {attractionName || 'Park camera'}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.offlinePreview}>
-            <Text style={styles.previewEmoji}>📷</Text>
-            <Text style={styles.previewText}>Camera ready</Text>
-            <Text style={styles.previewSub}>
-              Tap Start to go live
-            </Text>
-          </View>
-        )}
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => {
+              if (streaming) {
+                Alert.alert(
+                  t('broadcast_stop_title') || 'Stop streaming?',
+                  t('broadcast_stop_copy') || 'This will end the live stream for all viewers.',
+                  [
+                    { text: t('back') || 'Cancel', style: 'cancel' },
+                    {
+                      text: t('broadcast_stop_stream') || 'Stop stream',
+                      style: 'destructive',
+                      onPress: () => {
+                        void handleStopStream().finally(() => router.back());
+                      },
+                    },
+                  ]
+                );
+                return;
+              }
 
-        {/* Live badge */}
-        {streaming && (
-          <View style={styles.liveBadge}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>LIVE</Text>
-          </View>
-        )}
-
-        {/* Duration */}
-        {streaming && (
-          <View style={styles.durationBadge}>
-            <Text style={styles.durationText}>
-              {formatDuration(duration)}
-            </Text>
-          </View>
-        )}
-
-        {/* Viewers */}
-        {streaming && (
-          <View style={styles.viewersBadge}>
-            <Text style={styles.viewersText}>👁 {viewers}</Text>
-          </View>
-        )}
-
-        {/* Flip camera */}
-        {streaming && (
-          <TouchableOpacity style={styles.flipBtn} onPress={flipCamera}>
-            <Text style={styles.flipText}>🔄</Text>
+              router.back();
+            }}
+            style={styles.backBtn}
+          >
+            <Text style={styles.backBtnText}>Back</Text>
           </TouchableOpacity>
-        )}
-      </View>
+          <Text style={styles.headerTitle}>{t('broadcast_go_live') || 'Go Live'}</Text>
+          <View style={styles.headerSpacer} />
+        </View>
 
-      {/* Controls */}
-      <View style={styles.controls}>
-        <View style={styles.parkInfo}>
-          <Text style={styles.parkName}>
-            {attractionName || 'Park Camera'}
-          </Text>
-          <Text style={styles.parkStatus}>
-            {streaming
-              ? `Broadcasting • ${viewers} watching`
-              : 'Ready to stream'}
-          </Text>
+        <View style={styles.preview}>
+          {joined ? (
+            <>
+              <RtcSurfaceView
+                style={styles.videoSurface}
+                canvas={{
+                  uid: 0,
+                  renderMode: RenderModeType.RenderModeHidden,
+                  sourceType: VideoSourceType.VideoSourceCamera,
+                }}
+              />
+              <View style={styles.overlayTop}>
+                <View style={styles.liveBadge}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveText}>{t('broadcast_live') || 'LIVE'}</Text>
+                </View>
+                <Text style={styles.viewerPill}>
+                  {viewers} {t('broadcast_viewers_watching') || 'watching'}
+                </Text>
+              </View>
+              <View style={styles.overlayBottom}>
+                <Text style={styles.previewTitle}>{streamTitle}</Text>
+                <Text style={styles.previewMeta}>
+                  {formatDuration(duration)} | {normalizedAttractionName || 'Kenya'}
+                </Text>
+              </View>
+            </>
+          ) : (
+            <View style={styles.offlinePreview}>
+              <Text style={styles.previewEmoji}>CAM</Text>
+              <Text style={styles.previewText}>{t('broadcast_camera_ready') || 'Camera ready'}</Text>
+              <Text style={styles.previewSub}>
+                {t('broadcast_tap_start') || 'Tap Start to go live'}
+              </Text>
+            </View>
+          )}
         </View>
 
         {!streaming ? (
-          <TouchableOpacity
-            style={styles.startBtn}
-            onPress={startStream}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Text style={styles.startBtnIcon}>🔴</Text>
-                <Text style={styles.startBtnText}>Go Live</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={styles.stopBtn}
-            onPress={() => {
-              Alert.alert(
-                'Stop streaming?',
-                'This will end the live stream for all viewers.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Stop', style: 'destructive', onPress: stopStream },
-                ]
-              );
-            }}
-          >
-            <Text style={styles.stopBtnText}>⏹ Stop stream</Text>
-          </TouchableOpacity>
-        )}
+          <View style={styles.form}>
+            <Text style={styles.formTitle}>Stream Details</Text>
+            <Text style={styles.label}>Stream Title</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Maasai Mara Sunset Watch"
+              placeholderTextColor="#666"
+              value={streamTitle}
+              onChangeText={setStreamTitle}
+            />
 
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.backBtnText}>← Back</Text>
-        </TouchableOpacity>
-      </View>
+            <Text style={styles.label}>Description</Text>
+            <TextInput
+              style={[styles.input, styles.inputMultiline]}
+              placeholder="Tell viewers what you are showing live"
+              placeholderTextColor="#666"
+              value={streamDesc}
+              onChangeText={setStreamDesc}
+              multiline
+              numberOfLines={3}
+            />
+
+            <Text style={styles.locationNote}>Location: {normalizedAttractionName || 'Kenya'}</Text>
+            <Text style={styles.helperCopy}>
+              This stream uses your device camera and microphone directly in the app. Viewers can join from other devices through the live tab.
+            </Text>
+          </View>
+        ) : null}
+
+        <View style={styles.controls}>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleCard}>
+              <Text style={styles.toggleLabel}>Camera</Text>
+              <Switch value={cameraEnabled} onValueChange={toggleCamera} trackColor={{ true: '#0FA37F' }} />
+            </View>
+            <View style={styles.toggleCard}>
+              <Text style={styles.toggleLabel}>Microphone</Text>
+              <Switch value={micEnabled} onValueChange={toggleMicrophone} trackColor={{ true: '#0FA37F' }} />
+            </View>
+          </View>
+
+          {streaming ? (
+            <>
+              <TouchableOpacity style={styles.secondaryBtn} onPress={switchCamera}>
+                <Text style={styles.secondaryBtnText}>Switch Camera</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.stopBtn}
+                onPress={() =>
+                  Alert.alert(
+                    t('broadcast_stop_title') || 'Stop streaming?',
+                    t('broadcast_stop_copy') || 'This will end the live stream for all viewers.',
+                    [
+                      { text: t('back') || 'Cancel', style: 'cancel' },
+                      {
+                        text: t('broadcast_stop_stream') || 'Stop stream',
+                        style: 'destructive',
+                        onPress: () => {
+                          void handleStopStream();
+                        },
+                      },
+                    ]
+                  )
+                }
+                disabled={loading}
+              >
+                <Text style={styles.stopBtnText}>{t('broadcast_stop_stream') || 'Stop stream'}</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity style={styles.startBtn} onPress={handleGoLive} disabled={loading}>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.startBtnText}>{t('broadcast_go_live') || 'Go Live'}</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {streaming && normalizedAttractionId && normalizedAttractionId !== 'general' ? (
+            <TouchableOpacity style={styles.navBtn} onPress={() => router.push(`/map/${normalizedAttractionId}`)}>
+              <Text style={styles.navBtnText}>{t('broadcast_gps_navigation') || 'GPS Navigation'}</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {streaming ? (
+            <Text style={styles.liveNote}>
+              {t('broadcast_you_are_live') || 'You are live'} {user?.name ? `as ${user.name}` : ''}.
+            </Text>
+          ) : null}
+
+          {joinError ? <Text style={styles.errorNote}>{joinError}</Text> : null}
+
+          {sessionInfo ? (
+            <View style={styles.debugCard}>
+              <Text style={styles.debugTitle}>Session Debug</Text>
+              <Text style={styles.debugText}>Channel: {sessionInfo.channelName}</Text>
+              <Text style={styles.debugText}>UID: {sessionInfo.uid}</Text>
+              <Text style={styles.debugText}>Role: {sessionInfo.role}</Text>
+              <Text style={styles.debugText}>Token: {sessionInfo.hasToken ? 'received' : 'missing'}</Text>
+            </View>
+          ) : null}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  preview: {
+  container: {
     flex: 1,
-    backgroundColor: '#111',
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#030303',
   },
-  livePreview: {
-    alignItems: 'center',
-    gap: 8,
+  scroll: {
+    flexGrow: 1,
+    paddingBottom: 24,
   },
-  offlinePreview: {
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  previewEmoji: { fontSize: 64 },
-  previewText: {
-    fontSize: 18,
-    fontWeight: '600',
+  backBtn: {
+    minWidth: 60,
+  },
+  backBtnText: {
+    color: '#0FA37F',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  headerTitle: {
     color: '#fff',
+    fontSize: 18,
+    fontWeight: '800',
   },
-  previewSub: {
-    fontSize: 14,
-    color: '#aaa',
+  headerSpacer: {
+    width: 60,
   },
-  liveBadge: {
+  preview: {
+    height: height * 0.42,
+    marginHorizontal: 16,
+    borderRadius: 22,
+    overflow: 'hidden',
+    backgroundColor: '#121212',
+    borderWidth: 1,
+    borderColor: '#262626',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoSurface: {
+    width: '100%',
+    height: '100%',
+  },
+  overlayTop: {
     position: 'absolute',
     top: 16,
     left: 16,
+    right: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  overlayBottom: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 16,
+  },
+  liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,0,0,0.8)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(204,0,0,0.92)',
     gap: 6,
   },
   liveDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: 999,
     backgroundColor: '#fff',
   },
   liveText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: 1,
   },
-  durationBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 60,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  durationText: {
+  viewerPill: {
     color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
+    backgroundColor: 'rgba(0,0,0,0.58)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
-  viewersBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  viewersText: {
+  previewTitle: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 20,
+    fontWeight: '800',
   },
-  flipBtn: {
-    position: 'absolute',
-    bottom: 16,
-    right: 16,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 30,
-    width: 48,
-    height: 48,
+  previewMeta: {
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  offlinePreview: {
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  flipText: { fontSize: 22 },
-  controls: {
-    backgroundColor: '#1a1a1a',
-    padding: 20,
-    gap: 14,
-  },
-  parkInfo: { gap: 4 },
-  parkName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  parkStatus: {
-    fontSize: 13,
-    color: '#aaa',
-  },
-  startBtn: {
-    backgroundColor: '#cc0000',
-    borderRadius: 14,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     gap: 8,
+    paddingHorizontal: 24,
   },
-  startBtnIcon: { fontSize: 18 },
-  startBtnText: {
+  previewEmoji: {
+    color: '#0FA37F',
+    fontSize: 32,
+    fontWeight: '900',
+  },
+  previewText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  previewSub: {
+    color: '#9A9A9A',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 21,
+  },
+  form: {
+    margin: 16,
+    marginBottom: 10,
+    backgroundColor: '#121212',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#232323',
+  },
+  formTitle: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '800',
+  },
+  label: {
+    color: '#A1A1A1',
+    fontSize: 13,
+    marginTop: 14,
+    marginBottom: 6,
     fontWeight: '700',
   },
-  stopBtn: {
-    backgroundColor: '#333',
+  input: {
     borderRadius: 14,
-    padding: 16,
-    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    color: '#fff',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#cc0000',
+    borderColor: '#303030',
+    fontSize: 14,
+  },
+  inputMultiline: {
+    minHeight: 90,
+    textAlignVertical: 'top',
+  },
+  locationNote: {
+    marginTop: 14,
+    color: '#0FA37F',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  helperCopy: {
+    marginTop: 8,
+    color: '#9A9A9A',
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  controls: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  toggleCard: {
+    flex: 1,
+    backgroundColor: '#121212',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#232323',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  toggleLabel: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  startBtn: {
+    borderRadius: 18,
+    backgroundColor: '#CC0000',
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  startBtnText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  secondaryBtn: {
+    borderRadius: 18,
+    backgroundColor: '#173457',
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  stopBtn: {
+    borderRadius: 18,
+    backgroundColor: '#121212',
+    borderWidth: 1,
+    borderColor: '#CC0000',
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   stopBtnText: {
-    color: '#cc0000',
+    color: '#FF6B6B',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '800',
   },
-  backBtn: {
-    padding: 12,
+  navBtn: {
+    borderRadius: 18,
+    backgroundColor: '#264E86',
+    paddingVertical: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  backBtnText: {
-    color: '#888',
-    fontSize: 14,
+  navBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  liveNote: {
+    color: '#A1A1A1',
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  errorNote: {
+    color: '#FF8A8A',
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  debugCard: {
+    backgroundColor: '#121212',
+    borderWidth: 1,
+    borderColor: '#232323',
+    borderRadius: 18,
+    padding: 14,
+    gap: 4,
+  },
+  debugTitle: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  debugText: {
+    color: '#B9C0C8',
+    fontSize: 12,
+    lineHeight: 18,
   },
 });

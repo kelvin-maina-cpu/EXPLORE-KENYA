@@ -1,9 +1,8 @@
-# EXPLORE-KENYA-PROJECT TODO ✅
+# EXPLORE-KENYA-PROJECT TODO ✅ COMPLETE
 
-## Frontend Fixes (Completed)
+## Fixed
 
-- [x] Fixed register.jsx & login.jsx: Added labels, placeholderTextColor="#999", updated input styles.
+- [x] Auth inputs: Labels + placeholder colors (register/login)
+- [x] GPS Navigation under live camera start (broadcast screen → map)
 
-**Test:** cd Frontend && npx expo start → Check /login and /register screens (placeholders visible, labels present).
-
-**All steps complete.**
+**Test:** cd Frontend && npx expo start → Live camera → GPS button → Route guidance works.
