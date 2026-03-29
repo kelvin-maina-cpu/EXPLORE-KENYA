@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,8 +12,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ClientRoleType,
+  RemoteVideoState,
   RenderModeType,
   RtcSurfaceView,
+  RtcTextureView,
   VideoSourceType,
 } from 'react-native-agora';
 import {
@@ -22,6 +25,8 @@ import {
 } from '../../services/api';
 import { useLocale } from '../../context/LocalizationContext';
 import { configureAgoraRole, getAgoraEngine, releaseAgoraEngine } from '../../utils/agora';
+
+const AgoraVideoView = Platform.OS === 'android' ? RtcTextureView : RtcSurfaceView;
 
 export default function LiveViewerScreen() {
   const { streamId } = useLocalSearchParams();
@@ -36,6 +41,7 @@ export default function LiveViewerScreen() {
   const [stream, setStream] = useState(null);
   const [loading, setLoading] = useState(true);
   const [remoteUid, setRemoteUid] = useState(0);
+  const [remoteVideoActive, setRemoteVideoActive] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
   const [joiningText, setJoiningText] = useState(t('live_waiting') || 'Waiting for park camera...');
 
@@ -83,6 +89,7 @@ export default function LiveViewerScreen() {
     const handler = {
       onJoinChannelSuccess: async () => {
         joinedRef.current = true;
+        setRemoteVideoActive(false);
         setJoiningText(t('live_waiting') || 'Waiting for park camera...');
 
         if (normalizedStreamId && !presenceSentRef.current) {
@@ -97,10 +104,44 @@ export default function LiveViewerScreen() {
       },
       onUserJoined: (uid) => {
         setRemoteUid(uid);
+        setRemoteVideoActive(false);
+        setJoiningText('Host joined. Waiting for video feed...');
       },
       onUserOffline: () => {
         setRemoteUid(0);
+        setRemoteVideoActive(false);
         setJoiningText(t('live_waiting') || 'Waiting for park camera...');
+      },
+      onUserEnableVideo: (_connection, uid, enabled) => {
+        if (uid === remoteUid || !remoteUid) {
+          setRemoteUid(uid);
+          setRemoteVideoActive(Boolean(enabled));
+          setJoiningText(
+            enabled ? 'Connecting to live video...' : 'Host audio is live, but camera is off.'
+          );
+        }
+      },
+      onRemoteVideoStateChanged: (_connection, uid, state) => {
+        if (uid !== remoteUid && remoteUid) {
+          return;
+        }
+
+        setRemoteUid(uid);
+
+        if (state === RemoteVideoState.RemoteVideoStateDecoding) {
+          setRemoteVideoActive(true);
+          setJoiningText('Live video connected.');
+          return;
+        }
+
+        if (state === RemoteVideoState.RemoteVideoStateStopped) {
+          setRemoteVideoActive(false);
+          setJoiningText('Host audio is live, but camera is off.');
+          return;
+        }
+
+        setRemoteVideoActive(false);
+        setJoiningText('Connecting to live video...');
       },
       onLeaveChannel: () => {
         joinedRef.current = false;
@@ -139,6 +180,8 @@ export default function LiveViewerScreen() {
       registerAudienceEvents();
 
       configureAgoraRole(rtcEngine, ClientRoleType.ClientRoleAudience);
+      rtcEngine.enableVideo();
+      rtcEngine.muteAllRemoteVideoStreams(false);
       rtcEngine.joinChannel(session.token || '', session.channelName, session.uid || 0, {
         clientRoleType: ClientRoleType.ClientRoleAudience,
         autoSubscribeAudio: true,
@@ -175,8 +218,8 @@ export default function LiveViewerScreen() {
       <View style={styles.videoWrap}>
         {loading ? (
           <ActivityIndicator size="large" color="#0FA37F" />
-        ) : remoteUid ? (
-          <RtcSurfaceView
+        ) : remoteUid && remoteVideoActive ? (
+          <AgoraVideoView
             style={styles.videoSurface}
             canvas={{
               uid: remoteUid,

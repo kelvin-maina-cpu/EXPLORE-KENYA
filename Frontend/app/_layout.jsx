@@ -9,6 +9,8 @@ function RootNavigator() {
   const segments = useSegments();
   const inAuthGroup = segments[0] === '(auth)';
   const onWelcomeScreen = segments.length === 0 || (segments.length === 1 && segments[0] === 'index');
+  const onAboutScreen = segments.length === 1 && segments[0] === 'about';
+  const onLanguagesScreen = segments.length === 1 && segments[0] === 'languages';
 
   if (loading) {
     return (
@@ -18,7 +20,7 @@ function RootNavigator() {
     );
   }
 
-  if (!isAuthenticated && !inAuthGroup && !onWelcomeScreen) {
+  if (!isAuthenticated && !inAuthGroup && !onWelcomeScreen && !onAboutScreen && !onLanguagesScreen) {
     return <Redirect href="/" />;
   }
 

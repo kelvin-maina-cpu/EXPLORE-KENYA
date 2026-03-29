@@ -1,8 +1,11 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+
 const os = require('os');
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
+const { startPoller } = require('./jobs/paymentStatusPoller');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const attractionRoutes = require('./routes/attractionRoutes');
@@ -14,6 +17,11 @@ const errorHandler = require('./middleware/errorMiddleware');
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+if (!process.env.MONGO_URI) {
+  console.error('Missing MONGO_URI in Backend/.env');
+  process.exit(1);
+}
 
 const getLanAddress = () => {
   const interfaces = os.networkInterfaces();
@@ -31,6 +39,9 @@ const getLanAddress = () => {
 
 connectDB()
   .then(() => {
+    // Start payment status poller
+    startPoller();
+
     app.get('/', (req, res) => res.json({ message: 'Explore Kenya API' }));
 
     app.use('/api/auth', authRoutes);

@@ -1,64 +1,43 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
-  ActivityIndicator,
   Animated,
   Easing,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocalizationContext';
-import { getAttractions } from '../services/api';
 
 const FEATURE_CARDS = [
   {
-    key: 'navigation',
-    icon: '🗺️',
-    title: 'GPS navigation',
-    copy: 'Real-time maps to every attraction across Kenya.',
-  },
-  {
-    key: 'mpesa',
-    icon: '💱',
-    title: 'M-Pesa booking',
-    copy: 'Pay instantly with M-Pesa STK push.',
-  },
-  {
     key: 'live',
-    icon: '📹',
+    icon: 'LIVE',
     title: 'Live streaming',
     copy: 'Watch wildlife live from any park.',
   },
   {
     key: 'swahili',
-    icon: '🌍',
+    icon: 'LANG',
     title: 'Swahili support',
     copy: 'Full English and Swahili language support.',
   },
 ];
 
-const PACKAGE_OPTIONS = ['Day trip', 'Weekend', 'Family', 'Premium'];
-
 export default function LandingShowcase({ withinTabs = false }) {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const { t } = useLocale();
-  const [travelDate, setTravelDate] = useState('');
-  const [visitors, setVisitors] = useState('2');
-  const [selectedPackage, setSelectedPackage] = useState(PACKAGE_OPTIONS[0]);
   const glowAnimation = useRef(new Animated.Value(0)).current;
+
   const featureCards = useMemo(
     () => [
-      { ...FEATURE_CARDS[0], title: t('landing_feature_navigation_title'), copy: t('landing_feature_navigation_copy') },
-      { ...FEATURE_CARDS[1], title: t('landing_feature_mpesa_title'), copy: t('landing_feature_mpesa_copy') },
-      { ...FEATURE_CARDS[2], title: t('landing_feature_live_title'), copy: t('landing_feature_live_copy') },
-      { ...FEATURE_CARDS[3], title: t('landing_feature_language_title'), copy: t('landing_feature_language_copy') },
+      { ...FEATURE_CARDS[0], title: t('landing_feature_live_title'), copy: t('landing_feature_live_copy') },
+      { ...FEATURE_CARDS[1], title: t('landing_feature_language_title'), copy: t('landing_feature_language_copy') },
     ],
     [t]
   );
@@ -98,13 +77,15 @@ export default function LandingShowcase({ withinTabs = false }) {
   };
 
   const exploreTarget = withinTabs ? '/(tabs)/attractions' : '/(tabs)';
-  const handleAbout = () => {
-    if (withinTabs) {
-      requireAuthAndPush('/(tabs)/profile');
+  const handleFeaturePress = (key) => {
+    if (key === 'live') {
+      requireAuthAndPush('/(tabs)/live');
       return;
     }
 
-    router.push('/register');
+    if (key === 'swahili') {
+      router.push('/languages');
+    }
   };
 
   return (
@@ -136,7 +117,7 @@ export default function LandingShowcase({ withinTabs = false }) {
           </View>
 
           <View style={styles.animalRow}>
-            {['🦁', '🦓', '🦒', '🦏', '🐘'].map((animal) => (
+            {['Lion', 'Bird', 'Rhino', 'Giraffe', 'Elephant'].map((animal) => (
               <View key={animal} style={styles.animalBubble}>
                 <Text style={styles.animalEmoji}>{animal}</Text>
               </View>
@@ -148,7 +129,7 @@ export default function LandingShowcase({ withinTabs = false }) {
           {[
             { value: '20+', label: t('landing_stat_parks') },
             { value: '10K+', label: t('landing_stat_visitors') },
-            { value: '4.9⭐', label: t('landing_stat_rating') },
+            { value: '4.9*', label: t('landing_stat_rating') },
           ].map((stat) => (
             <View key={stat.label} style={styles.statCard}>
               <Text style={styles.statValue}>{stat.value}</Text>
@@ -163,31 +144,28 @@ export default function LandingShowcase({ withinTabs = false }) {
           <Text style={styles.sectionCopy}>{t('landing_ready_copy')}</Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.exploreBtn}
-          onPress={() => requireAuthAndPush(exploreTarget)}
-        >
-          <Text style={styles.exploreBtnIcon}>🗺️</Text>
-          <View style={{ flex: 1 }}>
+        <TouchableOpacity style={styles.exploreBtn} onPress={() => requireAuthAndPush(exploreTarget)}>
+          <Text style={styles.exploreBtnIcon}>MAP</Text>
+          <View style={styles.exploreBtnCopy}>
             <Text style={styles.exploreBtnTitle}>{t('landing_explore_title')}</Text>
             <Text style={styles.exploreBtnSub}>{t('landing_explore_copy')}</Text>
           </View>
-          <Text style={styles.exploreBtnArrow}>→</Text>
+          <Text style={styles.exploreBtnArrow}>{'>'}</Text>
         </TouchableOpacity>
 
         <View style={styles.featuresGrid}>
           {featureCards.map((feature) => (
-            <View key={feature.key} style={styles.featureCard}>
+            <TouchableOpacity key={feature.key} style={styles.featureCard} onPress={() => handleFeaturePress(feature.key)}>
               <Text style={styles.featureIcon}>{feature.icon}</Text>
               <Text style={styles.featureTitle}>{feature.title}</Text>
               <Text style={styles.featureCopy}>{feature.copy}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
 
         <View style={styles.bookingCard}>
           <Text style={styles.bookingTitle}>{t('landing_booking_title')}</Text>
-          <TouchableOpacity style={styles.bookingButton} onPress={handleAbout}>
+          <TouchableOpacity style={styles.bookingButton} onPress={() => router.push('/about')}>
             <Text style={styles.bookingButtonText}>{t('landing_booking_cta')}</Text>
           </TouchableOpacity>
         </View>
@@ -195,7 +173,7 @@ export default function LandingShowcase({ withinTabs = false }) {
         <View style={styles.footer}>
           <Text style={styles.footerBrand}>Explore Kenya</Text>
           <View style={styles.footerLinks}>
-            <TouchableOpacity onPress={handleAbout}>
+            <TouchableOpacity onPress={() => router.push('/about')}>
               <Text style={styles.footerLink}>{t('landing_footer_about')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => requireAuthAndPush('/(tabs)/live')}>
@@ -338,15 +316,18 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   animalBubble: {
-    width: 62,
+    minWidth: 62,
     height: 62,
+    paddingHorizontal: 10,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.14)',
   },
   animalEmoji: {
-    fontSize: 28,
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   statsRow: {
     flexDirection: 'row',
@@ -397,27 +378,32 @@ const styles = StyleSheet.create({
   exploreBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 16,
     borderWidth: 0.5,
-    borderColor: '#e0e0e0',
+    borderColor: '#E0E0E0',
     gap: 12,
   },
   exploreBtnIcon: {
-    fontSize: 32,
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F6E56',
+  },
+  exploreBtnCopy: {
+    flex: 1,
   },
   exploreBtnTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: '#1A1A1A',
     marginBottom: 2,
   },
   exploreBtnSub: {
     fontSize: 12,
-    color: '#666',
+    color: '#666666',
   },
   exploreBtnArrow: {
     fontSize: 20,
@@ -440,7 +426,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   featureIcon: {
-    fontSize: 26,
+    fontSize: 14,
+    color: '#0FA37F',
+    fontWeight: '800',
   },
   featureTitle: {
     color: '#F3F1EA',

@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -16,16 +17,19 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Camera } from 'expo-camera';
 import {
   ClientRoleType,
+  LocalVideoStreamState,
   RenderModeType,
   RtcSurfaceView,
+  RtcTextureView,
   VideoSourceType,
 } from 'react-native-agora';
-import { createLiveStream, getLiveStreamSession, stopLiveStream } from '../../services/api';
+import { createLiveStream, getLiveStream, getLiveStreamSession, stopLiveStream } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useLocale } from '../../context/LocalizationContext';
 import { configureAgoraRole, getAgoraEngine, releaseAgoraEngine } from '../../utils/agora';
 
 const { height } = Dimensions.get('window');
+const AgoraVideoView = Platform.OS === 'android' ? RtcTextureView : RtcSurfaceView;
 
 export default function BroadcastScreen() {
   const { attractionId, attractionName } = useLocalSearchParams();
@@ -38,6 +42,7 @@ export default function BroadcastScreen() {
   const timerRef = useRef(null);
   const eventHandlerRef = useRef(null);
   const stoppingRef = useRef(false);
+  const viewerSyncRef = useRef(null);
 
   const [streaming, setStreaming] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -58,6 +63,37 @@ export default function BroadcastScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!streaming || !streamId) {
+      if (viewerSyncRef.current) {
+        clearInterval(viewerSyncRef.current);
+        viewerSyncRef.current = null;
+      }
+      return undefined;
+    }
+
+    const syncViewerCount = async () => {
+      try {
+        const liveStream = await getLiveStream(streamId);
+        setViewers(liveStream.viewerCount || 0);
+      } catch {
+        // Best-effort UI refresh while live.
+      }
+    };
+
+    void syncViewerCount();
+    viewerSyncRef.current = setInterval(() => {
+      void syncViewerCount();
+    }, 3000);
+
+    return () => {
+      if (viewerSyncRef.current) {
+        clearInterval(viewerSyncRef.current);
+        viewerSyncRef.current = null;
+      }
+    };
+  }, [streaming, streamId]);
+
   const startDurationTimer = () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -72,6 +108,13 @@ export default function BroadcastScreen() {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
+    }
+  };
+
+  const stopViewerSync = () => {
+    if (viewerSyncRef.current) {
+      clearInterval(viewerSyncRef.current);
+      viewerSyncRef.current = null;
     }
   };
 
@@ -94,6 +137,7 @@ export default function BroadcastScreen() {
 
   const cleanupStreamingSession = async (notifyBackend = true) => {
     stopDurationTimer();
+    stopViewerSync();
     unregisterAgoraEvents();
     leaveAgoraChannel();
     releaseAgoraEngine();
@@ -143,6 +187,14 @@ export default function BroadcastScreen() {
       },
       onUserOffline: () => {
         setViewers((value) => Math.max(0, value - 1));
+      },
+      onLocalVideoStateChanged: (_source, state, reason) => {
+        console.log('Agora local video state:', state, 'reason:', reason);
+        if (state !== LocalVideoStreamState.LocalVideoStreamStateCapturing) {
+          setJoinError(`Camera track not ready yet (state ${state}, reason ${reason}).`);
+        } else {
+          setJoinError('');
+        }
       },
       onError: (errorCode, message) => {
         console.log('Agora broadcast error:', errorCode, message);
@@ -201,6 +253,8 @@ export default function BroadcastScreen() {
       setJoinError('');
 
       configureAgoraRole(rtcEngine, ClientRoleType.ClientRoleBroadcaster);
+      rtcEngine.enableVideo();
+      rtcEngine.enableAudio();
       rtcEngine.enableLocalVideo(true);
       rtcEngine.enableLocalAudio(true);
       rtcEngine.startPreview();
@@ -314,7 +368,7 @@ export default function BroadcastScreen() {
         <View style={styles.preview}>
           {joined ? (
             <>
-              <RtcSurfaceView
+              <AgoraVideoView
                 style={styles.videoSurface}
                 canvas={{
                   uid: 0,
