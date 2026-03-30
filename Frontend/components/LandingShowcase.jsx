@@ -30,7 +30,7 @@ const FEATURE_CARDS = [
 
 export default function LandingShowcase({ withinTabs = false }) {
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { t } = useLocale();
   const glowAnimation = useRef(new Animated.Value(0)).current;
 
@@ -76,10 +76,10 @@ export default function LandingShowcase({ withinTabs = false }) {
     router.push('/login');
   };
 
-  const exploreTarget = withinTabs ? '/(tabs)/attractions' : '/(tabs)';
+  const exploreTarget = withinTabs ? '/attractions' : '/login';
   const handleFeaturePress = (key) => {
     if (key === 'live') {
-      requireAuthAndPush('/(tabs)/live');
+      requireAuthAndPush('/live');
       return;
     }
 
@@ -99,6 +99,14 @@ export default function LandingShowcase({ withinTabs = false }) {
           <Animated.View style={[styles.heroGlowLarge, styles.heroGlowOne]} />
           <Animated.View style={[styles.heroGlowSmall, styles.heroGlowTwo]} />
 
+          {withinTabs && isAuthenticated ? (
+            <View style={styles.accountChip}>
+              <Text style={styles.accountChipText}>
+                {user?.name ? `Signed in as ${user.name}` : `Signed in as ${user?.email || 'Traveler'}`}
+              </Text>
+            </View>
+          ) : null}
+
           <View style={styles.heroBadge}>
             <Text style={styles.heroBadgeText}>{t('landing_badge')}</Text>
           </View>
@@ -111,7 +119,7 @@ export default function LandingShowcase({ withinTabs = false }) {
               <Text style={styles.primaryButtonText}>{t('landing_explore')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => requireAuthAndPush('/(tabs)/live')}>
+            <TouchableOpacity style={styles.secondaryButton} onPress={() => requireAuthAndPush('/live')}>
               <Text style={styles.secondaryButtonText}>{t('landing_watch_live')}</Text>
             </TouchableOpacity>
           </View>
@@ -176,10 +184,10 @@ export default function LandingShowcase({ withinTabs = false }) {
             <TouchableOpacity onPress={() => router.push('/about')}>
               <Text style={styles.footerLink}>{t('landing_footer_about')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => requireAuthAndPush('/(tabs)/live')}>
+            <TouchableOpacity onPress={() => requireAuthAndPush('/live')}>
               <Text style={styles.footerLink}>{t('landing_footer_live')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => requireAuthAndPush('/(tabs)/bookings')}>
+            <TouchableOpacity onPress={() => requireAuthAndPush('/bookings')}>
               <Text style={styles.footerLink}>{t('landing_footer_bookings')}</Text>
             </TouchableOpacity>
           </View>
@@ -248,6 +256,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 8,
     marginBottom: 20,
+  },
+  accountChip: {
+    alignSelf: 'stretch',
+    marginBottom: 14,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  accountChipText: {
+    color: '#F5FFF9',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   heroBadgeText: {
     color: '#F5FFF9',

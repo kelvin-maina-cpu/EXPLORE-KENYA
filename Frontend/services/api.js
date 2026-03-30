@@ -1,5 +1,4 @@
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
@@ -63,6 +62,15 @@ const FALLBACK_API_BASE_URLS = uniqueValues([
 ].filter((origin) => origin !== joinApiPath(primaryOrigin)));
 
 const API_BASE_URL = joinApiPath(primaryOrigin);
+let sessionToken = '';
+
+export const setSessionToken = (token) => {
+  sessionToken = token || '';
+};
+
+export const clearSessionToken = () => {
+  sessionToken = '';
+};
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -74,10 +82,9 @@ const api = axios.create({
 
 // Request interceptor - add JWT token
 api.interceptors.request.use(async (config) => {
-  const token = await SecureStore.getItemAsync('authToken');
   config.headers = config.headers ?? {};
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (sessionToken) {
+    config.headers.Authorization = `Bearer ${sessionToken}`;
   }
   return config;
 });
@@ -87,8 +94,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      await SecureStore.deleteItemAsync('authToken');
-      // Redirect to login via navigation (handled in AuthContext)
+      clearSessionToken();
     }
 
     const requestConfig = error.config || {};

@@ -26,6 +26,7 @@ const DEFAULT_REGION = {
 };
 
 const ARRIVAL_THRESHOLD_METERS = 80;
+const OFFLINE_ROUTE_SPEED_METERS_PER_SECOND = 11.11;
 const toRadians = (value) => (value * Math.PI) / 180;
 
 const calculateDistanceMeters = (pointA, pointB) => {
@@ -132,6 +133,176 @@ const getLastKnownUserPosition = async () => {
   };
 };
 
+const buildOfflineRoute = (origin, endPoint, t) => {
+  const totalDistance = calculateDistanceMeters(origin, endPoint);
+  const estimatedDuration = totalDistance / OFFLINE_ROUTE_SPEED_METERS_PER_SECOND;
+  const midpoint = {
+    latitude: (origin.latitude + endPoint.latitude) / 2,
+    longitude: (origin.longitude + endPoint.longitude) / 2,
+  };
+
+  return {
+    coordinates: [origin, midpoint, endPoint],
+    steps: [
+      {
+        distance: totalDistance * 0.55,
+        duration: estimatedDuration * 0.55,
+        name: t('map_destination_label'),
+        maneuver: {
+          type: 'depart',
+          location: [origin.longitude, origin.latitude],
+        },
+      },
+      {
+        distance: totalDistance * 0.45,
+        duration: estimatedDuration * 0.45,
+        name: t('map_destination_label'),
+        maneuver: {
+          type: 'arrive',
+          location: [endPoint.longitude, endPoint.latitude],
+        },
+      },
+    ],
+    summary: {
+      distance: totalDistance,
+      duration: estimatedDuration,
+    },
+  };
+};
+
+const buildOfflineMapHtml = ({ destination, userLocation, routePoints, fallbackLine, destinationName, t }) => {
+  const points = routePoints.length ? routePoints : fallbackLine;
+  const allPoints = [
+    ...(userLocation ? [[userLocation.latitude, userLocation.longitude]] : []),
+    ...(destination ? [[destination.latitude, destination.longitude]] : []),
+    ...points,
+  ];
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+          width: 100%;
+          height: 100%;
+          background: #eef3f8;
+          font-family: Arial, sans-serif;
+        }
+        .wrap {
+          width: 100%;
+          height: 100%;
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .badge {
+          align-self: flex-start;
+          background: #173457;
+          color: #fff;
+          border-radius: 999px;
+          padding: 8px 12px;
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .title {
+          color: #173457;
+          font-size: 14px;
+          line-height: 20px;
+        }
+        .map {
+          flex: 1;
+          border-radius: 18px;
+          background: linear-gradient(180deg, #ffffff 0%, #eef6f2 100%);
+          border: 1px solid #d9e0ea;
+          overflow: hidden;
+          position: relative;
+        }
+        svg { width: 100%; height: 100%; display: block; }
+        .legend {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+          color: #66707c;
+          font-size: 12px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="wrap">
+        <div class="badge">${String(t('live_offline') || 'Offline').replace(/</g, '&lt;')}</div>
+        <div class="title">Offline route preview for ${String(destinationName).replace(/</g, '&lt;')}</div>
+        <div class="map">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="routeLine" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#264E86" />
+                <stop offset="100%" stop-color="#0F6E56" />
+              </linearGradient>
+            </defs>
+            <rect x="0" y="0" width="100" height="100" fill="#f7f1e8" />
+            <path id="route-path" d="" fill="none" stroke="url(#routeLine)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+            <circle id="user-dot" r="3" fill="#173457" />
+            <circle id="destination-dot" r="3.6" fill="#B24D34" />
+          </svg>
+        </div>
+        <div class="legend">
+          <span>${String(t('navigation_you_are_here')).replace(/</g, '&lt;')}</span>
+          <span>${String(t('navigation_your_destination')).replace(/</g, '&lt;')}</span>
+        </div>
+      </div>
+      <script>
+        const allPoints = ${JSON.stringify(allPoints)};
+        const routePoints = ${JSON.stringify(points)};
+        const userLocation = ${JSON.stringify(userLocation ? [userLocation.latitude, userLocation.longitude] : null)};
+        const destination = ${JSON.stringify(destination ? [destination.latitude, destination.longitude] : null)};
+
+        const project = (point, bounds) => {
+          const padding = 10;
+          const x = ((point[1] - bounds.minLng) / Math.max(bounds.lngSpan, 0.0001)) * (100 - padding * 2) + padding;
+          const y = ((bounds.maxLat - point[0]) / Math.max(bounds.latSpan, 0.0001)) * (100 - padding * 2) + padding;
+          return [x, y];
+        };
+
+        if (allPoints.length) {
+          const lats = allPoints.map((point) => point[0]);
+          const lngs = allPoints.map((point) => point[1]);
+          const bounds = {
+            minLat: Math.min(...lats),
+            maxLat: Math.max(...lats),
+            minLng: Math.min(...lngs),
+            maxLng: Math.max(...lngs),
+          };
+          bounds.latSpan = bounds.maxLat - bounds.minLat || 0.01;
+          bounds.lngSpan = bounds.maxLng - bounds.minLng || 0.01;
+
+          const projectedRoute = routePoints.map((point) => project(point, bounds));
+          const routePath = projectedRoute.map((point, index) => \`\${index === 0 ? 'M' : 'L'} \${point[0].toFixed(2)} \${point[1].toFixed(2)}\`).join(' ');
+          document.getElementById('route-path').setAttribute('d', routePath);
+
+          if (userLocation) {
+            const userPoint = project(userLocation, bounds);
+            const userDot = document.getElementById('user-dot');
+            userDot.setAttribute('cx', userPoint[0].toFixed(2));
+            userDot.setAttribute('cy', userPoint[1].toFixed(2));
+          }
+
+          if (destination) {
+            const destinationPoint = project(destination, bounds);
+            const destinationDot = document.getElementById('destination-dot');
+            destinationDot.setAttribute('cx', destinationPoint[0].toFixed(2));
+            destinationDot.setAttribute('cy', destinationPoint[1].toFixed(2));
+          }
+        }
+      </script>
+    </body>
+    </html>
+  `;
+};
+
 export default function AttractionMapScreen() {
   const { id, latitude, longitude, name, description } = useLocalSearchParams();
   const router = useRouter();
@@ -148,6 +319,8 @@ export default function AttractionMapScreen() {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [navigationError, setNavigationError] = useState('');
   const [routeLoading, setRouteLoading] = useState(false);
+  const [routeMode, setRouteMode] = useState('online');
+  const [destinationLocationText, setDestinationLocationText] = useState('');
 
   useEffect(() => {
     void loadMapData();
@@ -158,6 +331,46 @@ export default function AttractionMapScreen() {
       locationSubscriptionRef.current?.remove();
     };
   }, []);
+
+  useEffect(() => {
+    const loadDestinationLocationDetails = async () => {
+      if (!destination) {
+        setDestinationLocationText('');
+        return;
+      }
+
+      try {
+        const details = await Location.reverseGeocodeAsync({
+          latitude: destination.latitude,
+          longitude: destination.longitude,
+        });
+
+        const firstMatch = details?.[0];
+        if (!firstMatch) {
+          setDestinationLocationText(
+            `${destination.latitude.toFixed(5)}, ${destination.longitude.toFixed(5)}`
+          );
+          return;
+        }
+
+        const parts = [
+          firstMatch.name,
+          firstMatch.street,
+          firstMatch.city || firstMatch.subregion,
+          firstMatch.region,
+          firstMatch.country,
+        ].filter(Boolean);
+
+        setDestinationLocationText(parts.join(', '));
+      } catch {
+        setDestinationLocationText(
+          `${destination.latitude.toFixed(5)}, ${destination.longitude.toFixed(5)}`
+        );
+      }
+    };
+
+    void loadDestinationLocationDetails();
+  }, [destination]);
 
   const getInitialUserPosition = async () => {
     const servicesEnabled = await Location.hasServicesEnabledAsync();
@@ -472,9 +685,16 @@ export default function AttractionMapScreen() {
         duration: route.duration || 0,
       });
       setCurrentStepIndex(0);
+      setRouteMode('online');
     } catch (error) {
       console.error('Route fetch error:', error);
-      setNavigationError(error.message || t('map_load_failed'));
+      const offlineRoute = buildOfflineRoute(origin, endPoint, t);
+      setRouteCoordinates(offlineRoute.coordinates);
+      setRouteSteps(offlineRoute.steps);
+      setRouteSummary(offlineRoute.summary);
+      setCurrentStepIndex(0);
+      setRouteMode('offline');
+      setNavigationError(`${t('live_offline')}: ${t('map_route_appears')}`);
     } finally {
       routeRefreshInFlightRef.current = false;
       setRouteLoading(false);
@@ -514,6 +734,17 @@ export default function AttractionMapScreen() {
     const safeDestinationName = String(destinationName || 'Destination')
       .replace(/'/g, "\\'")
       .replace(/"/g, '\\"');
+
+    if (routeMode === 'offline') {
+      return buildOfflineMapHtml({
+        destination,
+        userLocation,
+        routePoints,
+        fallbackLine,
+        destinationName,
+        t,
+      });
+    }
 
     return `
       <!DOCTYPE html>
@@ -625,7 +856,11 @@ export default function AttractionMapScreen() {
       <View style={styles.infoPanel}>
         <View style={styles.infoHeader}>
           <Text style={styles.infoTitle}>{t('map_nav_title')}</Text>
-          {routeLoading ? <ActivityIndicator size="small" color="#264E86" /> : null}
+          <View style={styles.routeStatusWrap}>
+            {routeMode === 'online' ? <Text style={styles.onlineBadge}>Exact route</Text> : null}
+            {routeMode === 'offline' ? <Text style={styles.offlineBadge}>Offline preview</Text> : null}
+            {routeLoading ? <ActivityIndicator size="small" color="#264E86" /> : null}
+          </View>
         </View>
 
         <View style={styles.statRow}>
@@ -656,6 +891,17 @@ export default function AttractionMapScreen() {
         </View>
 
         {navigationError ? <Text style={styles.errorText}>{navigationError}</Text> : null}
+
+        <View style={styles.destinationCard}>
+          <Text style={styles.destinationLabel}>{t('map_destination_label')}</Text>
+          <Text style={styles.destinationName}>{destinationName}</Text>
+          <Text style={styles.destinationDescription}>{destinationDescription}</Text>
+          <Text style={styles.destinationLocation}>
+            {destinationLocationText || (destination
+              ? `${destination.latitude.toFixed(5)}, ${destination.longitude.toFixed(5)}`
+              : t('map_coords_missing'))}
+          </Text>
+        </View>
 
         <Text style={styles.infoText}>
           {destination
@@ -742,10 +988,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  routeStatusWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   infoTitle: {
     fontSize: 19,
     fontWeight: '900',
     color: '#1D2D45',
+  },
+  onlineBadge: {
+    backgroundColor: '#E1F5EE',
+    color: '#0F6E56',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  offlineBadge: {
+    backgroundColor: '#FCEBEB',
+    color: '#A32D2D',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    overflow: 'hidden',
   },
   statRow: {
     flexDirection: 'row',
@@ -802,6 +1075,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     color: '#B24D34',
+  },
+  destinationCard: {
+    backgroundColor: '#F7F1E8',
+    borderRadius: 18,
+    padding: 14,
+    gap: 6,
+  },
+  destinationLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#66707C',
+    textTransform: 'uppercase',
+  },
+  destinationName: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#1D2D45',
+  },
+  destinationDescription: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#66707C',
+  },
+  destinationLocation: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#264E86',
+    fontWeight: '700',
   },
   directionsBtn: {
     marginTop: 8,

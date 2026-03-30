@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocalizationContext';
 import { getAttractions } from '../services/api';
 
@@ -27,6 +28,7 @@ const FILTERS = ['all', 'wildlife', 'culture', 'cultural', 'adventure', 'beach',
 
 export default function AttractionsCatalog() {
   const router = useRouter();
+  const { user } = useAuth();
   const { t } = useLocale();
   const [attractions, setAttractions] = useState([]);
   const [search, setSearch] = useState('');
@@ -101,10 +103,13 @@ export default function AttractionsCatalog() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View>
+          <Text style={styles.accountLabel}>
+            {user?.name ? `Signed in as ${user.name}` : user?.email ? `Signed in as ${user.email}` : t('app_name')}
+          </Text>
           <Text style={styles.greeting}>{t('catalog_greeting')} {'\u{1F44B}'}</Text>
           <Text style={styles.headerTitle}>Explore Kenya</Text>
         </View>
-        <TouchableOpacity style={styles.profileBtn} onPress={() => router.push('/(tabs)/bookings')}>
+        <TouchableOpacity style={styles.profileBtn} onPress={() => router.push('/bookings')}>
           <Text style={styles.profileEmoji}>{'\u{1F4CB}'}</Text>
         </TouchableOpacity>
       </View>
@@ -173,6 +178,12 @@ const styles = StyleSheet.create({
   greeting: {
     color: 'rgba(255,255,255,0.8)',
     fontSize: 13,
+  },
+  accountLabel: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 6,
   },
   headerTitle: {
     color: '#FFFFFF',

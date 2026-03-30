@@ -10,6 +10,7 @@ export default function Register() {
     name: '',
     email: '',
     password: '',
+    confirmPassword: '',
     phoneNumber: '',
   });
   const { register, loading } = useAuth();
@@ -30,6 +31,11 @@ export default function Register() {
       return;
     }
 
+    if (password !== form.confirmPassword.trim()) {
+      Alert.alert(t('error'), t('reset_password_mismatch'));
+      return;
+    }
+
     const emailRegex = /^[\w.-]+@[\w.-]+\.\w{2,}$/i;
     if (!emailRegex.test(email)) {
       Alert.alert(t('error'), 'Please enter a valid email address');
@@ -38,7 +44,12 @@ export default function Register() {
 
     const result = await register(form);
     if (result.success) {
-      router.replace('/');
+      Alert.alert('Account created', result.message || 'Your account was created successfully. Please log in to continue and enable fingerprint login.', [
+        {
+          text: 'OK',
+          onPress: () => router.replace('/login'),
+        },
+      ]);
     } else {
       // Handle specific backend errors
       let errorMsg = result.error || 'Registration failed';
@@ -93,6 +104,15 @@ export default function Register() {
             placeholderTextColor="#999"
             value={form.password}
             onChangeText={(text) => setForm((current) => ({ ...current, password: text }))}
+            secureTextEntry
+          />
+          <Text style={styles.label}>{t('confirm_password')}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder={t('confirm_password')}
+            placeholderTextColor="#999"
+            value={form.confirmPassword}
+            onChangeText={(text) => setForm((current) => ({ ...current, confirmPassword: text }))}
             secureTextEntry
           />
 

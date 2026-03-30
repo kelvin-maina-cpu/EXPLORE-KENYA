@@ -95,7 +95,7 @@ export default function BookingsScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('bookings_title')}</Text>
-        <TouchableOpacity onPress={() => router.push('/(tabs)')}>
+        <TouchableOpacity onPress={() => router.push('/attractions')}>
           <Text style={styles.newBooking}>{t('bookings_new')}</Text>
         </TouchableOpacity>
       </View>
@@ -107,7 +107,7 @@ export default function BookingsScreen() {
           <Text style={styles.emptyEmoji}>{'\u{1F4CB}'}</Text>
           <Text style={styles.emptyTitle}>{t('bookings_none_title')}</Text>
           <Text style={styles.emptyDesc}>{t('bookings_none_desc')}</Text>
-          <TouchableOpacity style={styles.exploreBtn} onPress={() => router.push('/(tabs)')}>
+          <TouchableOpacity style={styles.exploreBtn} onPress={() => router.push('/attractions')}>
             <Text style={styles.exploreBtnText}>{t('bookings_explore_cta')}</Text>
           </TouchableOpacity>
         </View>

@@ -77,7 +77,14 @@ const registerUser = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/login
 // @access  Public
 const loginUser = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const email = (req.body.email || '').trim().toLowerCase();
+  const password = req.body.password || '';
+
+  if (!email || !password) {
+    res.status(400);
+    throw new Error('Email and password are required');
+  }
+
   const user = await User.findOne({ email }).select('+password');
 
   if (!user || !(await user.matchPassword(password))) {
@@ -92,7 +99,7 @@ const loginUser = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/forgot-password
 // @access  Public
 const requestPasswordReset = asyncHandler(async (req, res) => {
-  const { email } = req.body;
+  const email = (req.body.email || '').trim().toLowerCase();
 
   if (!email) {
     res.status(400);
@@ -122,7 +129,9 @@ const requestPasswordReset = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/reset-password
 // @access  Public
 const resetPassword = asyncHandler(async (req, res) => {
-  const { email, code, newPassword } = req.body;
+  const email = (req.body.email || '').trim().toLowerCase();
+  const code = (req.body.code || '').trim();
+  const newPassword = req.body.newPassword || '';
 
   if (!email || !code || !newPassword) {
     res.status(400);

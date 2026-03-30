@@ -21,7 +21,8 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Explore Kenya uses your location to show nearby destinations and help you navigate to attractions.",
         "NSCameraUsageDescription": "Explore Kenya uses your camera so you can broadcast live wildlife and travel moments.",
-        "NSMicrophoneUsageDescription": "Explore Kenya uses your microphone so viewers can hear your live broadcast."
+        "NSMicrophoneUsageDescription": "Explore Kenya uses your microphone so viewers can hear your live broadcast.",
+        "NSFaceIDUsageDescription": "Explore Kenya uses Face ID or fingerprint authentication to let you sign in securely."
       }
     },
     "android": {
@@ -55,7 +56,8 @@
         {
           "locationWhenInUsePermission": "Explore Kenya uses your location to show nearby destinations and help you navigate to attractions."
         }
-      ]
+      ],
+      "expo-local-authentication"
     ],
     "experiments": {
       "typedRoutes": true

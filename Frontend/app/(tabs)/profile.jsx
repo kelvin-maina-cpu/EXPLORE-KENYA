@@ -3,19 +3,31 @@ import {
   Alert,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { AVAILABLE_LANGUAGES, useLocale } from '../../context/LocalizationContext';
 
 const availableInterests = ['wildlife', 'culture', 'adventure', 'history'];
 
 export default function ProfileScreen() {
-  const { user, updateProfile, logout, loading } = useAuth();
+  const {
+    user,
+    updateProfile,
+    logout,
+    loading,
+    biometricAvailable,
+    biometricEnabled,
+    biometricSupportMessage,
+    enableBiometricLoginFromSession,
+    disableBiometricLogin,
+  } = useAuth();
   const { language, setLanguage, t } = useLocale();
   const [form, setForm] = useState({
     name: user?.name || '',
@@ -69,6 +81,27 @@ export default function ProfileScreen() {
 
     await setLanguage(form.languages[0] || 'en');
     Alert.alert(t('profile_saved'), t('language_saved'));
+  };
+
+  const handleBiometricToggle = async (value) => {
+    if (value) {
+      const result = await enableBiometricLoginFromSession();
+      if (!result.success) {
+        Alert.alert(t('error'), result.error);
+        return;
+      }
+
+      Alert.alert('Fingerprint login enabled', 'You can now use your fingerprint to sign in on this device.');
+      return;
+    }
+
+    const result = await disableBiometricLogin();
+    if (!result.success) {
+      Alert.alert(t('error'), result.error);
+      return;
+    }
+
+    Alert.alert('Fingerprint login disabled', 'Biometric sign-in has been turned off for this device.');
   };
 
   return (
@@ -162,6 +195,63 @@ export default function ProfileScreen() {
               );
             })}
           </View>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.biometricHeader}>
+            <View style={styles.biometricIconWrap}>
+              <MaterialCommunityIcons name="fingerprint" size={24} color="#FFFFFF" />
+            </View>
+            <View style={styles.biometricHeaderCopy}>
+              <Text style={styles.sectionTitle}>Fingerprint Login</Text>
+              <Text style={styles.biometricCopy}>
+                Use your device fingerprint or biometrics to sign in faster on future visits.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.biometricRow}>
+            <Text style={styles.biometricStatus}>
+              {biometricAvailable
+                ? biometricEnabled
+                  ? 'Enabled on this device'
+                  : 'Available on this device'
+                : 'Not available on this device'}
+            </Text>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={(value) => {
+                void handleBiometricToggle(value);
+              }}
+              disabled={!biometricAvailable || loading}
+              trackColor={{ true: '#264E86' }}
+            />
+          </View>
+          {!biometricAvailable && biometricSupportMessage ? (
+            <Text style={styles.biometricHint}>{biometricSupportMessage}</Text>
+          ) : null}
+          {biometricAvailable ? (
+            <TouchableOpacity
+              style={[styles.biometricActionButton, biometricEnabled && styles.biometricActionButtonActive]}
+              onPress={() => {
+                void handleBiometricToggle(!biometricEnabled);
+              }}
+              disabled={loading}
+            >
+              <MaterialCommunityIcons
+                name={biometricEnabled ? 'fingerprint-off' : 'fingerprint'}
+                size={18}
+                color="#FFFFFF"
+              />
+              <Text style={styles.biometricActionText}>
+                {biometricEnabled ? 'Disable fingerprint login' : 'Enable fingerprint login'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+          {!biometricEnabled && biometricAvailable ? (
+            <Text style={styles.biometricHint}>
+              If enabling fails, log out and sign in again with email and password first.
+            </Text>
+          ) : null}
         </View>
 
         <TouchableOpacity style={styles.primaryButton} onPress={handleSave} disabled={loading}>
@@ -267,6 +357,66 @@ const styles = StyleSheet.create({
   },
   optionTextActive: {
     color: '#FFFFFF',
+  },
+  biometricHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  biometricIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: '#264E86',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  biometricHeaderCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  biometricCopy: {
+    color: '#66707C',
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  biometricRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 8,
+  },
+  biometricStatus: {
+    flex: 1,
+    color: '#1D2D45',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  biometricHint: {
+    color: '#66707C',
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  biometricActionButton: {
+    marginTop: 6,
+    borderRadius: 16,
+    backgroundColor: '#0F6E56',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  biometricActionButtonActive: {
+    backgroundColor: '#8E3B2F',
+  },
+  biometricActionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
   primaryButton: {
     backgroundColor: '#264E86',
