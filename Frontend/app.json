@@ -63,7 +63,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "http://192.168.0.102:5000",
+      "apiUrl": "https://explore-kenya-hp95.onrender.com",
       "router": {},
       "eas": {
         "projectId": "790bc6ce-d430-47bd-81f5-3b3dd40f2afc"
