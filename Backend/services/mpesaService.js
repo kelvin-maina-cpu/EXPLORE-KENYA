@@ -1,6 +1,11 @@
+const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
-require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
+
+const localEnvPath = path.resolve(__dirname, '..', '.env');
+if (process.env.NODE_ENV !== 'production' && fs.existsSync(localEnvPath)) {
+  require('dotenv').config({ path: localEnvPath });
+}
 
 const cleanEnv = (value) => value?.trim();
 

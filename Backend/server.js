@@ -1,5 +1,10 @@
+const fs = require('fs');
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+
+const localEnvPath = path.resolve(__dirname, '.env');
+if (process.env.NODE_ENV !== 'production' && fs.existsSync(localEnvPath)) {
+  require('dotenv').config({ path: localEnvPath });
+}
 
 const os = require('os');
 const express = require('express');
@@ -19,7 +24,7 @@ app.use(cors());
 app.use(express.json());
 
 if (!process.env.MONGO_URI) {
-  console.error('Missing MONGO_URI in Backend/.env');
+  console.error('Missing MONGO_URI. Set it in the environment or a local Backend/.env file.');
   process.exit(1);
 }
 

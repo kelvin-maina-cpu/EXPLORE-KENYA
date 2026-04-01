@@ -4,7 +4,7 @@
     "slug": "explore-kenya",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/Explore-kenya.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
@@ -31,7 +31,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/Explore-kenya.png",
         "backgroundColor": "#FFFFFF"
       },
       "versionCode": 1,

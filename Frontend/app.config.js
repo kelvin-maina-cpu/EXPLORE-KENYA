@@ -11,7 +11,7 @@ export default {
     slug: 'explore-kenya',
     version: appVersion,
     orientation: 'portrait',
-    icon: './assets/icon.png',
+    icon: './assets/Explore-kenya.png',
     userInterfaceStyle: 'light',
     splash: {
       image: './assets/splash.png',
@@ -37,7 +37,7 @@ export default {
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: './assets/adaptive-icon.png',
+        foregroundImage: './assets/Explore-kenya.png',
         backgroundColor: '#FFFFFF',
       },
       package: 'com.maishke.explorekenya',
