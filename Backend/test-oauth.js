@@ -1,6 +1,6 @@
 const path = require('path');
 const axios = require('axios');
-require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+require('dotenv').config({ path: path.resolve(__dirname, '.env'), quiet: true });
 
 async function testOAuth() {
   const key = process.env.MPESA_CONSUMER_KEY?.trim();

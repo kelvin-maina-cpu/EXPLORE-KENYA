@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 
 const localEnvPath = path.resolve(__dirname, '.env');
-if (process.env.NODE_ENV !== 'production' && fs.existsSync(localEnvPath)) {
-  require('dotenv').config({ path: localEnvPath });
+if (fs.existsSync(localEnvPath)) {
+  require('dotenv').config({ path: localEnvPath, quiet: true });
 }
 
 const os = require('os');
