@@ -15,7 +15,7 @@ const LANGUAGE_PREVIEWS = {
 
 export default function LanguagesScreen() {
   const router = useRouter();
-  const { language, setLanguage } = useLocale();
+  const { language, setLanguage, t } = useLocale();
 
   const handleSelectLanguage = async (code) => {
     await setLanguage(code);
@@ -26,14 +26,14 @@ export default function LanguagesScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Back</Text>
+          <Text style={styles.backButtonText}>{t('back')}</Text>
         </TouchableOpacity>
 
         <View style={styles.hero}>
-          <Text style={styles.eyebrow}>LANGUAGE SUPPORT</Text>
-          <Text style={styles.title}>Choose the language you want to use in Explore Kenya.</Text>
+          <Text style={styles.eyebrow}>{t('languages_support_eyebrow')}</Text>
+          <Text style={styles.title}>{t('languages_title')}</Text>
           <Text style={styles.copy}>
-            Tap any language card below to translate the app and continue browsing in your preferred language.
+            {t('languages_copy')}
           </Text>
         </View>
 
@@ -51,7 +51,7 @@ export default function LanguagesScreen() {
               >
                 <View style={styles.cardTop}>
                   <Text style={[styles.cardCode, selected && styles.cardCodeActive]}>{item.code.toUpperCase()}</Text>
-                  {selected ? <Text style={styles.selectedTag}>Selected</Text> : null}
+                  {selected ? <Text style={styles.selectedTag}>{t('selected')}</Text> : null}
                 </View>
                 <Text style={[styles.cardTitle, selected && styles.cardTitleActive]}>{item.label}</Text>
                 <Text style={[styles.cardPreview, selected && styles.cardPreviewActive]}>

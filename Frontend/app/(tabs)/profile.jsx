@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { AVAILABLE_LANGUAGES, useLocale } from '../../context/LocalizationContext';
+import { useTheme } from '../../context/ThemeContext';
 
 const availableInterests = ['wildlife', 'culture', 'adventure', 'history'];
 
@@ -29,6 +30,7 @@ export default function ProfileScreen() {
     disableBiometricLogin,
   } = useAuth();
   const { language, setLanguage, t } = useLocale();
+  const { theme, isDarkMode, toggleTheme } = useTheme();
   const [form, setForm] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -46,6 +48,8 @@ export default function ProfileScreen() {
       interests: user?.preferences?.interests || [],
     });
   }, [language, user]);
+
+  const colors = theme.colors;
 
   const activeLanguage = useMemo(() => form.languages?.[0] || language || 'en', [form.languages, language]);
   const formatInterestLabel = (value) => {
@@ -91,7 +95,7 @@ export default function ProfileScreen() {
         return;
       }
 
-      Alert.alert('Fingerprint login enabled', 'You can now use your fingerprint to sign in on this device.');
+      Alert.alert(t('fingerprint_enabled_title'), t('fingerprint_enabled_copy'));
       return;
     }
 
@@ -101,60 +105,67 @@ export default function ProfileScreen() {
       return;
     }
 
-    Alert.alert('Fingerprint login disabled', 'Biometric sign-in has been turned off for this device.');
+    Alert.alert(t('fingerprint_disabled_title'), t('fingerprint_disabled_copy'));
   };
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: colors.screen }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.heroCard}>
-          <Text style={styles.eyebrow}>{t('settings')}</Text>
-          <Text style={styles.title}>{t('profile_title')}</Text>
-          <Text style={styles.copy}>{t('profile_copy')}</Text>
+        <View style={[styles.heroCard, { backgroundColor: colors.hero }]}>
+          <Text style={[styles.eyebrow, { color: colors.heroEyebrow }]}>{t('settings')}</Text>
+          <Text style={[styles.title, { color: colors.heroText }]}>{t('profile_title')}</Text>
+          <Text style={[styles.copy, { color: colors.heroMuted }]}>{t('profile_copy')}</Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>{t('full_name')}</Text>
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.label, { color: colors.textMuted }]}>{t('full_name')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: colors.borderSoft, backgroundColor: colors.cardSoft, color: colors.inputText }]}
             value={form.name}
             onChangeText={(text) => setForm((current) => ({ ...current, name: text }))}
+            placeholderTextColor={colors.placeholder}
           />
 
-          <Text style={styles.label}>{t('email')}</Text>
+          <Text style={[styles.label, { color: colors.textMuted }]}>{t('email')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: colors.borderSoft, backgroundColor: colors.cardSoft, color: colors.inputText }]}
             value={form.email}
             onChangeText={(text) => setForm((current) => ({ ...current, email: text }))}
             autoCapitalize="none"
             keyboardType="email-address"
+            placeholderTextColor={colors.placeholder}
           />
 
-          <Text style={styles.label}>{t('phone_number')}</Text>
+          <Text style={[styles.label, { color: colors.textMuted }]}>{t('phone_number')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: colors.borderSoft, backgroundColor: colors.cardSoft, color: colors.inputText }]}
             value={form.phoneNumber}
             onChangeText={(text) => setForm((current) => ({ ...current, phoneNumber: text }))}
             keyboardType="phone-pad"
+            placeholderTextColor={colors.placeholder}
           />
 
-          <Text style={styles.meta}>
+          <Text style={[styles.meta, { color: colors.textMuted }]}>
             {t('role')}: {user?.role || t('guest')}
           </Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>{t('language')}</Text>
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('language')}</Text>
           <View style={styles.optionRow}>
             {AVAILABLE_LANGUAGES.map((item) => {
               const active = activeLanguage === item.code;
               return (
                 <TouchableOpacity
                   key={item.code}
-                  style={[styles.optionChip, active && styles.optionChipActive]}
+                  style={[
+                    styles.optionChip,
+                    { backgroundColor: colors.cardSoft, borderColor: colors.border },
+                    active && [styles.optionChipActive, { backgroundColor: colors.primary, borderColor: colors.primary }],
+                  ]}
                   onPress={() => setForm((current) => ({ ...current, languages: [item.code] }))}
                 >
-                  <Text style={[styles.optionText, active && styles.optionTextActive]}>
+                  <Text style={[styles.optionText, { color: colors.textMuted }, active && [styles.optionTextActive, { color: colors.primaryText }]]}>
                     {t(
                       item.code === 'en'
                         ? 'language_english'
@@ -177,18 +188,22 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>{t('interests')}</Text>
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('interests')}</Text>
           <View style={styles.optionRow}>
             {availableInterests.map((interest) => {
               const active = form.interests.includes(interest);
               return (
                 <TouchableOpacity
                   key={interest}
-                  style={[styles.optionChip, active && styles.optionChipActive]}
+                  style={[
+                    styles.optionChip,
+                    { backgroundColor: colors.cardSoft, borderColor: colors.border },
+                    active && [styles.optionChipActive, { backgroundColor: colors.primary, borderColor: colors.primary }],
+                  ]}
                   onPress={() => toggleInterest(interest)}
                 >
-                  <Text style={[styles.optionText, active && styles.optionTextActive]}>
+                  <Text style={[styles.optionText, { color: colors.textMuted }, active && [styles.optionTextActive, { color: colors.primaryText }]]}>
                     {formatInterestLabel(interest)}
                   </Text>
                 </TouchableOpacity>
@@ -197,25 +212,43 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.biometricRow}>
+            <View style={styles.biometricHeaderCopy}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('appearance')}</Text>
+              <Text style={[styles.biometricCopy, { color: colors.textMuted }]}>
+                {t('appearance_copy')}
+              </Text>
+            </View>
+            <Switch
+              value={isDarkMode}
+              onValueChange={() => {
+                void toggleTheme();
+              }}
+              trackColor={{ true: colors.primary }}
+            />
+          </View>
+        </View>
+
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.biometricHeader}>
-            <View style={styles.biometricIconWrap}>
-              <MaterialCommunityIcons name="fingerprint" size={24} color="#FFFFFF" />
+            <View style={[styles.biometricIconWrap, { backgroundColor: colors.primary }]}>
+              <MaterialCommunityIcons name="fingerprint" size={24} color={colors.primaryText} />
             </View>
             <View style={styles.biometricHeaderCopy}>
-              <Text style={styles.sectionTitle}>Fingerprint Login</Text>
-              <Text style={styles.biometricCopy}>
-                Use your device fingerprint or biometrics to sign in faster on future visits.
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('biometric_login_title')}</Text>
+              <Text style={[styles.biometricCopy, { color: colors.textMuted }]}>
+                {t('biometric_profile_copy')}
               </Text>
             </View>
           </View>
           <View style={styles.biometricRow}>
-            <Text style={styles.biometricStatus}>
+            <Text style={[styles.biometricStatus, { color: colors.text }]}>
               {biometricAvailable
                 ? biometricEnabled
-                  ? 'Enabled on this device'
-                  : 'Available on this device'
-                : 'Not available on this device'}
+                  ? t('biometric_enabled_device')
+                  : t('biometric_available_device')
+                : t('biometric_unavailable_device')}
             </Text>
             <Switch
               value={biometricEnabled}
@@ -223,15 +256,19 @@ export default function ProfileScreen() {
                 void handleBiometricToggle(value);
               }}
               disabled={!biometricAvailable || loading}
-              trackColor={{ true: '#264E86' }}
+              trackColor={{ true: colors.primary }}
             />
           </View>
           {!biometricAvailable && biometricSupportMessage ? (
-            <Text style={styles.biometricHint}>{biometricSupportMessage}</Text>
+            <Text style={[styles.biometricHint, { color: colors.textMuted }]}>{biometricSupportMessage}</Text>
           ) : null}
           {biometricAvailable ? (
             <TouchableOpacity
-              style={[styles.biometricActionButton, biometricEnabled && styles.biometricActionButtonActive]}
+              style={[
+                styles.biometricActionButton,
+                { backgroundColor: colors.secondary },
+                biometricEnabled && [styles.biometricActionButtonActive, { backgroundColor: colors.danger }],
+              ]}
               onPress={() => {
                 void handleBiometricToggle(!biometricEnabled);
               }}
@@ -240,26 +277,26 @@ export default function ProfileScreen() {
               <MaterialCommunityIcons
                 name={biometricEnabled ? 'fingerprint-off' : 'fingerprint'}
                 size={18}
-                color="#FFFFFF"
+                color={colors.secondaryText}
               />
-              <Text style={styles.biometricActionText}>
-                {biometricEnabled ? 'Disable fingerprint login' : 'Enable fingerprint login'}
+              <Text style={[styles.biometricActionText, { color: colors.secondaryText }]}>
+                {biometricEnabled ? t('biometric_disable_cta') : t('biometric_enable_cta')}
               </Text>
             </TouchableOpacity>
           ) : null}
           {!biometricEnabled && biometricAvailable ? (
-            <Text style={styles.biometricHint}>
-              If enabling fails, log out and sign in again with email and password first.
+            <Text style={[styles.biometricHint, { color: colors.textMuted }]}>
+              {t('biometric_retry_hint')}
             </Text>
           ) : null}
         </View>
 
-        <TouchableOpacity style={styles.primaryButton} onPress={handleSave} disabled={loading}>
-          <Text style={styles.primaryButtonText}>{loading ? t('loading') : t('save_profile')}</Text>
+        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.primary }]} onPress={handleSave} disabled={loading}>
+          <Text style={[styles.primaryButtonText, { color: colors.primaryText }]}>{loading ? t('loading') : t('save_profile')}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryButton} onPress={logout}>
-          <Text style={styles.secondaryButtonText}>{t('logout')}</Text>
+        <TouchableOpacity style={[styles.secondaryButton, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={logout}>
+          <Text style={[styles.secondaryButtonText, { color: colors.danger }]}>{t('logout')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

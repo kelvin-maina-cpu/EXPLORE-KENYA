@@ -12,9 +12,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import { useLocale } from '../../context/LocalizationContext';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function ChatbotScreen() {
   const { t } = useLocale();
+  const { theme } = useTheme();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
@@ -80,33 +82,44 @@ export default function ChatbotScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: theme.colors.screen }]}>
       <FlatList
         data={messages}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <View style={[styles.messageBubble, item.role === 'user' ? styles.userBubble : styles.botBubble]}>
-            {item.matchedQuestion ? <Text style={styles.matchLabel}>{item.matchedQuestion}</Text> : null}
-            <Text style={[styles.messageText, item.role === 'user' && styles.userText]}>{item.text}</Text>
+          <View
+            style={[
+              styles.messageBubble,
+              item.role === 'user'
+                ? [styles.userBubble, { backgroundColor: theme.colors.primary }]
+                : [styles.botBubble, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }],
+            ]}
+          >
+            {item.matchedQuestion ? <Text style={[styles.matchLabel, { color: theme.colors.textMuted }]}>{item.matchedQuestion}</Text> : null}
+            <Text style={[styles.messageText, { color: theme.colors.text }, item.role === 'user' && [styles.userText, { color: theme.colors.primaryText }]]}>{item.text}</Text>
           </View>
         )}
         ListHeaderComponent={
           <View style={styles.headerWrap}>
-            <View style={styles.heroCard}>
-              <Text style={styles.eyebrow}>{t('chatbot')}</Text>
-              <Text style={styles.title}>{t('chatbot_title')}</Text>
-              <Text style={styles.copy}>{t('chatbot_copy')}</Text>
+            <View style={[styles.heroCard, { backgroundColor: theme.colors.hero }]}>
+              <Text style={[styles.eyebrow, { color: theme.colors.heroEyebrow }]}>{t('chatbot')}</Text>
+              <Text style={[styles.title, { color: theme.colors.heroText }]}>{t('chatbot_title')}</Text>
+              <Text style={[styles.copy, { color: theme.colors.heroMuted }]}>{t('chatbot_copy')}</Text>
             </View>
 
-            <View style={styles.suggestionCard}>
-              <Text style={styles.suggestionTitle}>{t('faq')}</Text>
+            <View style={[styles.suggestionCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+              <Text style={[styles.suggestionTitle, { color: theme.colors.text }]}>{t('faq')}</Text>
               {loadingSuggestions ? (
-                <ActivityIndicator size="small" color="#264E86" />
+                <ActivityIndicator size="small" color={theme.colors.primary} />
               ) : (
                 <View style={styles.suggestionList}>
                   {suggestions.map((suggestion) => (
-                    <TouchableOpacity key={suggestion} style={styles.suggestionChip} onPress={() => askQuestion(suggestion)}>
-                      <Text style={styles.suggestionText}>{suggestion}</Text>
+                    <TouchableOpacity
+                      key={suggestion}
+                      style={[styles.suggestionChip, { backgroundColor: theme.colors.screen, borderColor: theme.colors.border }]}
+                      onPress={() => askQuestion(suggestion)}
+                    >
+                      <Text style={[styles.suggestionText, { color: theme.colors.text }]}>{suggestion}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -118,16 +131,17 @@ export default function ChatbotScreen() {
         showsVerticalScrollIndicator={false}
       />
 
-      <View style={styles.composerBar}>
+      <View style={[styles.composerBar, { backgroundColor: theme.colors.cardSoft, borderTopColor: theme.colors.border }]}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.card, color: theme.colors.inputText }]}
           placeholder={t('type_message')}
+          placeholderTextColor={theme.colors.placeholder}
           value={message}
           onChangeText={setMessage}
         />
-        <TouchableOpacity style={styles.sendButton} onPress={() => askQuestion(message)} disabled={sending}>
-          <Ionicons name="send" size={18} color="#FFFFFF" />
-          <Text style={styles.sendText}>{sending ? t('loading') : t('send')}</Text>
+        <TouchableOpacity style={[styles.sendButton, { backgroundColor: theme.colors.primary }]} onPress={() => askQuestion(message)} disabled={sending}>
+          <Ionicons name="send" size={18} color={theme.colors.primaryText} />
+          <Text style={[styles.sendText, { color: theme.colors.primaryText }]}>{sending ? t('loading') : t('send')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

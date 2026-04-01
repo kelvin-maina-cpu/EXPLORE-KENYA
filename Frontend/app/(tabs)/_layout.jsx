@@ -1,17 +1,19 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocale } from '../../context/LocalizationContext';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function TabLayout() {
   const { t } = useLocale();
+  const { theme } = useTheme();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#0F6E56',
-        tabBarInactiveTintColor: '#7C8B86',
-        tabBarActiveBackgroundColor: '#E1F5EE',
+        tabBarActiveTintColor: theme.colors.tabActive,
+        tabBarInactiveTintColor: theme.colors.tabInactive,
+        tabBarActiveBackgroundColor: theme.colors.tabActiveBackground,
         tabBarStyle: {
           position: 'absolute',
           left: 14,
@@ -22,9 +24,9 @@ export default function TabLayout() {
           paddingHorizontal: 8,
           paddingTop: 8,
           paddingBottom: 12,
-          backgroundColor: '#FFFFFF',
+          backgroundColor: theme.colors.tabBackground,
           borderTopColor: 'transparent',
-          shadowColor: '#0F6E56',
+          shadowColor: theme.colors.shadow,
           shadowOffset: { width: 0, height: 10 },
           shadowOpacity: 0.12,
           shadowRadius: 22,
@@ -73,6 +75,13 @@ export default function TabLayout() {
         options={{
           title: t('chatbot'),
           tabBarIcon: ({ color, size }) => <Ionicons name="chatbubble-ellipses-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="travel"
+        options={{
+          title: t('travel'),
+          tabBarIcon: ({ color, size }) => <Ionicons name="airplane-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen

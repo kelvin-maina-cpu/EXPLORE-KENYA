@@ -38,21 +38,21 @@ export default function Register() {
 
     const emailRegex = /^[\w.-]+@[\w.-]+\.\w{2,}$/i;
     if (!emailRegex.test(email)) {
-      Alert.alert(t('error'), 'Please enter a valid email address');
+      Alert.alert(t('error'), t('auth_invalid_email'));
       return;
     }
 
     const result = await register(form);
     if (result.success) {
-      Alert.alert('Account created', result.message || 'Your account was created successfully. Please log in to continue and enable fingerprint login.', [
+      Alert.alert(t('auth_account_created'), result.message || t('auth_created_biometric_copy'), [
         {
-          text: 'OK',
+          text: t('continue_button'),
           onPress: () => router.replace('/login'),
         },
       ]);
     } else {
       // Handle specific backend errors
-      let errorMsg = result.error || 'Registration failed';
+      let errorMsg = result.error || t('auth_register_failed');
       if (result.errors && Array.isArray(result.errors)) {
         errorMsg = result.errors.join('\\n');
       }

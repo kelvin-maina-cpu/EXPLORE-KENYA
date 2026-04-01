@@ -2,52 +2,38 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
-const CAPABILITIES = [
-  {
-    title: 'Explore attractions',
-    copy: 'Browse national parks, reserves, cultural destinations, and featured travel highlights across Kenya.',
-  },
-  {
-    title: 'Book and pay',
-    copy: 'Reserve tours and experiences, then complete payments inside the app with M-Pesa and checkout support.',
-  },
-  {
-    title: 'Watch live sessions',
-    copy: 'Join real-time live streams from parks and attractions to experience wildlife and destinations remotely.',
-  },
-  {
-    title: 'Use smart travel tools',
-    copy: 'Access GPS navigation, multilingual support, chatbot assistance, and personal booking history in one place.',
-  },
-];
+import { useLocale } from '../context/LocalizationContext';
 
 export default function AboutScreen() {
   const router = useRouter();
+  const { t } = useLocale();
+  const capabilities = [
+    { title: t('about_capability_explore_title'), copy: t('about_capability_explore_copy') },
+    { title: t('about_capability_book_title'), copy: t('about_capability_book_copy') },
+    { title: t('about_capability_live_title'), copy: t('about_capability_live_copy') },
+    { title: t('about_capability_tools_title'), copy: t('about_capability_tools_copy') },
+  ];
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Back</Text>
+          <Text style={styles.backButtonText}>{t('back')}</Text>
         </TouchableOpacity>
 
         <View style={styles.heroCard}>
-          <Text style={styles.eyebrow}>ABOUT EXPLORE KENYA</Text>
-          <Text style={styles.title}>A tourism app built to help travelers discover, plan, book, and experience Kenya more easily.</Text>
-          <Text style={styles.copy}>
-            Explore Kenya brings destination discovery, live travel experiences, route guidance, bookings, and payment support together in one mobile platform.
-          </Text>
+          <Text style={styles.eyebrow}>{t('about_eyebrow')}</Text>
+          <Text style={styles.title}>{t('about_title')}</Text>
+          <Text style={styles.copy}>{t('about_copy')}</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>What Explore Kenya Does</Text>
-          <Text style={styles.sectionCopy}>
-            Explore Kenya helps users find attractions, learn about destinations, watch live sessions, plan trips, make reservations, and manage their travel activity from a single interface.
-          </Text>
+          <Text style={styles.sectionTitle}>{t('about_section_title')}</Text>
+          <Text style={styles.sectionCopy}>{t('about_section_copy')}</Text>
         </View>
 
         <View style={styles.grid}>
-          {CAPABILITIES.map((item) => (
+          {capabilities.map((item) => (
             <View key={item.title} style={styles.card}>
               <Text style={styles.cardTitle}>{item.title}</Text>
               <Text style={styles.cardCopy}>{item.copy}</Text>
@@ -56,12 +42,12 @@ export default function AboutScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Key Capabilities</Text>
-          <Text style={styles.bullet}>Discover attractions and wildlife destinations across Kenya.</Text>
-          <Text style={styles.bullet}>Book experiences with integrated payment flows.</Text>
-          <Text style={styles.bullet}>Watch live streams from supported attractions.</Text>
-          <Text style={styles.bullet}>Use built-in navigation and travel guidance tools.</Text>
-          <Text style={styles.bullet}>Get help through multilingual support and chatbot assistance.</Text>
+          <Text style={styles.sectionTitle}>{t('about_key_capabilities_title')}</Text>
+          <Text style={styles.bullet}>{t('about_bullet_one')}</Text>
+          <Text style={styles.bullet}>{t('about_bullet_two')}</Text>
+          <Text style={styles.bullet}>{t('about_bullet_three')}</Text>
+          <Text style={styles.bullet}>{t('about_bullet_four')}</Text>
+          <Text style={styles.bullet}>{t('about_bullet_five')}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

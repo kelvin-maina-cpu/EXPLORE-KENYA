@@ -38,7 +38,7 @@ export default function LiveScreen() {
       const data = await getLiveStreams();
       setStreams(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(t('live_failed_load') || 'Failed to load live streams');
+      setError(t('live_failed_load'));
     } finally {
       setLoading(false);
     }
@@ -72,28 +72,28 @@ export default function LiveScreen() {
           </View>
           <View style={styles.streamInfo}>
             <Text style={styles.streamName} numberOfLines={1}>
-              {item.title || item.attractionName || 'Live Stream'}
+              {item.title || item.attractionName || t('live_default_title')}
             </Text>
             <Text style={styles.streamLocation} numberOfLines={1}>
               {item.locationName || item.attractionName || ''}
             </Text>
             {item.hostName ? (
-              <Text style={styles.streamHost}>by {item.hostName}</Text>
+              <Text style={styles.streamHost}>{t('live_by_host')} {item.hostName}</Text>
             ) : null}
             <View style={styles.streamMeta}>
               {isLive ? (
                 <View style={styles.liveBadge}>
                   <View style={styles.liveDot} />
-                  <Text style={styles.liveText}>LIVE</Text>
+                  <Text style={styles.liveText}>{t('live_status_live')}</Text>
                 </View>
               ) : (
                 <View style={styles.offlineBadge}>
-                  <Text style={styles.offlineText}>OFFLINE</Text>
+                  <Text style={styles.offlineText}>{t('live_status_offline')}</Text>
                 </View>
               )}
               {item.playbackType === 'agora' ? (
                 <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryText}>{item.viewerCount || 0} watching</Text>
+                  <Text style={styles.categoryText}>{item.viewerCount || 0} {t('live_watching_suffix')}</Text>
                 </View>
               ) : null}
               {item.category ? (
@@ -106,7 +106,7 @@ export default function LiveScreen() {
         </View>
         <View style={[styles.watchBtn, !isLive && styles.watchBtnOffline]}>
           <Text style={styles.watchBtnText}>
-            {isLive ? (item.playbackType === 'agora' ? 'Join' : 'Watch') : 'View'}
+            {isLive ? (item.playbackType === 'agora' ? t('live_join') : t('live_watch')) : t('live_view')}
           </Text>
         </View>
       </TouchableOpacity>
@@ -119,15 +119,15 @@ export default function LiveScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>
-            {t('live_title') || 'Live Streams'}
+            {t('live_title')}
           </Text>
           <Text style={styles.headerSub}>
-            Kenya Wildlife & Attractions
+            {t('live_header_sub')}
           </Text>
         </View>
         <View style={styles.liveIndicator}>
           <View style={styles.livePulse} />
-          <Text style={styles.liveIndicatorText}>LIVE</Text>
+          <Text style={styles.liveIndicatorText}>{t('live_indicator')}</Text>
         </View>
       </View>
 
@@ -140,10 +140,10 @@ export default function LiveScreen() {
         <Text style={styles.broadcastBannerEmoji}>📡</Text>
         <View style={styles.broadcastBannerText}>
           <Text style={styles.broadcastBannerTitle}>
-            {t('broadcast_go_live') || 'Go Live Now'}
+            {t('live_go_live_now')}
           </Text>
           <Text style={styles.broadcastBannerSub}>
-            Share your Kenya experience live
+            {t('live_share_copy')}
           </Text>
         </View>
         <Text style={styles.broadcastBannerArrow}>›</Text>
@@ -154,7 +154,7 @@ export default function LiveScreen() {
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity onPress={fetchStreams} style={styles.retryBtn}>
-            <Text style={styles.retryText}>Retry</Text>
+            <Text style={styles.retryText}>{t('live_retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -162,11 +162,11 @@ export default function LiveScreen() {
       {/* List Header */}
       <View style={styles.listHeader}>
         <Text style={styles.listTitle}>
-          {t('live_all_cameras') || 'All Live Cameras'}
+          {t('live_all_cameras')}
         </Text>
         <TouchableOpacity onPress={fetchStreams}>
           <Text style={styles.refreshBtn}>
-            {t('live_refresh') || 'Refresh'}
+            {t('live_refresh')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -189,17 +189,16 @@ export default function LiveScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>📡</Text>
               <Text style={styles.emptyTitle}>
-                {t('live_empty_title') || 'No Live Streams'}
+                {t('live_empty_title')}
               </Text>
               <Text style={styles.emptyDesc}>
-                {t('live_empty_desc') ||
-                  'No live streams available right now. Check back soon or start your own!'}
+                {t('live_empty_desc')}
               </Text>
               <TouchableOpacity
                 style={styles.startLiveBtn}
                 onPress={() => router.push('/broadcast/general')}
               >
-                <Text style={styles.startLiveBtnText}>Start Live Stream</Text>
+                <Text style={styles.startLiveBtnText}>{t('live_start_stream')}</Text>
               </TouchableOpacity>
             </View>
           }

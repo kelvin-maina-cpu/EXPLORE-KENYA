@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocalizationContext';
+import { useTheme } from '../context/ThemeContext';
 import { getAttractions } from '../services/api';
 
 const CATEGORY_ICONS = {
@@ -30,6 +31,7 @@ export default function AttractionsCatalog() {
   const router = useRouter();
   const { user } = useAuth();
   const { t } = useLocale();
+  const { theme } = useTheme();
   const [attractions, setAttractions] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -80,46 +82,49 @@ export default function AttractionsCatalog() {
   };
 
   const renderCard = ({ item }) => (
-    <TouchableOpacity style={styles.card} onPress={() => router.push(`/attraction/${item._id}`)}>
-      <View style={styles.cardImg}>
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+      onPress={() => router.push(`/attraction/${item._id}`)}
+    >
+      <View style={[styles.cardImg, { backgroundColor: theme.colors.tabActiveBackground }]}>
         <Text style={styles.cardEmoji}>{CATEGORY_ICONS[(item.category || '').toLowerCase()] || '\u{1F33F}'}</Text>
       </View>
       <View style={styles.cardBody}>
-        <Text style={styles.cardTitle}>{item.name}</Text>
-        <Text style={styles.cardDesc} numberOfLines={2}>
+        <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{item.name}</Text>
+        <Text style={[styles.cardDesc, { color: theme.colors.textMuted }]} numberOfLines={2}>
           {item.description}
         </Text>
         <View style={styles.cardFooter}>
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>{formatFilterLabel((item.category || 'wildlife').toLowerCase())}</Text>
+          <View style={[styles.tag, { backgroundColor: theme.colors.tabActiveBackground }]}>
+            <Text style={[styles.tagText, { color: theme.colors.tabActive }]}>{formatFilterLabel((item.category || 'wildlife').toLowerCase())}</Text>
           </View>
-          <Text style={styles.viewMore}>{t('catalog_view_more')} {'->'}</Text>
+          <Text style={[styles.viewMore, { color: theme.colors.tabActive }]}>{t('catalog_view_more')} {'->'}</Text>
         </View>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.screenMuted }]}>
+      <View style={[styles.header, { backgroundColor: theme.colors.secondary }]}>
         <View>
-          <Text style={styles.accountLabel}>
+          <Text style={[styles.accountLabel, { color: theme.colors.heroEyebrow }]}>
             {user?.name ? `Signed in as ${user.name}` : user?.email ? `Signed in as ${user.email}` : t('app_name')}
           </Text>
-          <Text style={styles.greeting}>{t('catalog_greeting')} {'\u{1F44B}'}</Text>
-          <Text style={styles.headerTitle}>Explore Kenya</Text>
+          <Text style={[styles.greeting, { color: theme.colors.heroEyebrow }]}>{t('catalog_greeting')} {'\u{1F44B}'}</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.heroText }]}>Explore Kenya</Text>
         </View>
-        <TouchableOpacity style={styles.profileBtn} onPress={() => router.push('/bookings')}>
+        <TouchableOpacity style={[styles.profileBtn, { backgroundColor: 'rgba(255,255,255,0.2)' }]} onPress={() => router.push('/bookings')}>
           <Text style={styles.profileEmoji}>{'\u{1F4CB}'}</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.searchBox}>
+      <View style={[styles.searchBox, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <Text style={styles.searchIcon}>{'\u{1F50D}'}</Text>
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.colors.inputText }]}
           placeholder={t('catalog_search_placeholder')}
-          placeholderTextColor="#999999"
+          placeholderTextColor={theme.colors.placeholder}
           value={search}
           onChangeText={setSearch}
         />
@@ -133,10 +138,14 @@ export default function AttractionsCatalog() {
           keyExtractor={(item) => item}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={[styles.filter, activeFilter === item && styles.filterActive]}
+              style={[
+                styles.filter,
+                { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+                activeFilter === item && [styles.filterActive, { backgroundColor: theme.colors.secondary, borderColor: theme.colors.secondary }],
+              ]}
               onPress={() => setActiveFilter(item)}
             >
-              <Text style={[styles.filterText, activeFilter === item && styles.filterTextActive]}>
+              <Text style={[styles.filterText, { color: theme.colors.textMuted }, activeFilter === item && [styles.filterTextActive, { color: theme.colors.secondaryText }]]}>
                 {formatFilterLabel(item)}
               </Text>
             </TouchableOpacity>
@@ -146,14 +155,14 @@ export default function AttractionsCatalog() {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#0F6E56" style={styles.loader} />
+        <ActivityIndicator size="large" color={theme.colors.secondary} style={styles.loader} />
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={(item) => item._id}
           renderItem={renderCard}
           contentContainerStyle={styles.list}
-          ListEmptyComponent={<Text style={styles.empty}>{t('catalog_empty')}</Text>}
+          ListEmptyComponent={<Text style={[styles.empty, { color: theme.colors.placeholder }]}>{t('catalog_empty')}</Text>}
           showsVerticalScrollIndicator={false}
         />
       )}

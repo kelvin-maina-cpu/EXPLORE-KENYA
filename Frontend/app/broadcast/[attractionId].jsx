@@ -170,7 +170,7 @@ export default function BroadcastScreen() {
     ]);
 
     if (cameraPermission.status !== 'granted' || microphonePermission.status !== 'granted') {
-      throw new Error('Camera and microphone permissions are required to go live');
+      throw new Error(t('broadcast_permissions_required'));
     }
   };
 
@@ -191,7 +191,7 @@ export default function BroadcastScreen() {
       onLocalVideoStateChanged: (_source, state, reason) => {
         console.log('Agora local video state:', state, 'reason:', reason);
         if (state !== LocalVideoStreamState.LocalVideoStreamStateCapturing) {
-          setJoinError(`Camera track not ready yet (state ${state}, reason ${reason}).`);
+          setJoinError(`${t('broadcast_camera_not_ready')} (state ${state}, reason ${reason}).`);
         } else {
           setJoinError('');
         }
@@ -212,7 +212,7 @@ export default function BroadcastScreen() {
 
   const handleGoLive = async () => {
     if (!streamTitle.trim()) {
-      Alert.alert(t('error') || 'Error', 'Please enter a stream title');
+      Alert.alert(t('error'), t('broadcast_stream_title_required'));
       return;
     }
 
@@ -243,7 +243,7 @@ export default function BroadcastScreen() {
       });
 
       if (!session.token) {
-        throw new Error('The backend did not return an Agora token for this live session');
+        throw new Error(t('broadcast_missing_token'));
       }
 
       const rtcEngine = getAgoraEngine(session.appId);
@@ -280,7 +280,7 @@ export default function BroadcastScreen() {
         }
       }
       Alert.alert(
-        t('error') || 'Error',
+        t('error'),
         err.response?.data?.message || err.message || t('broadcast_start_failed')
       );
     } finally {
@@ -327,7 +327,7 @@ export default function BroadcastScreen() {
     try {
       rtcEngineRef.current?.switchCamera();
     } catch (error) {
-      Alert.alert(t('error') || 'Error', error.message || 'Unable to switch camera');
+      Alert.alert(t('error'), error.message || t('broadcast_switch_camera_failed'));
     }
   };
 
@@ -339,12 +339,12 @@ export default function BroadcastScreen() {
             onPress={() => {
               if (streaming) {
                 Alert.alert(
-                  t('broadcast_stop_title') || 'Stop streaming?',
-                  t('broadcast_stop_copy') || 'This will end the live stream for all viewers.',
+                  t('broadcast_stop_title'),
+                  t('broadcast_stop_copy'),
                   [
-                    { text: t('back') || 'Cancel', style: 'cancel' },
+                    { text: t('back'), style: 'cancel' },
                     {
-                      text: t('broadcast_stop_stream') || 'Stop stream',
+                      text: t('broadcast_stop_stream'),
                       style: 'destructive',
                       onPress: () => {
                         void handleStopStream().finally(() => router.back());
@@ -359,9 +359,9 @@ export default function BroadcastScreen() {
             }}
             style={styles.backBtn}
           >
-            <Text style={styles.backBtnText}>Back</Text>
+            <Text style={styles.backBtnText}>{t('back')}</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('broadcast_go_live') || 'Go Live'}</Text>
+          <Text style={styles.headerTitle}>{t('broadcast_go_live')}</Text>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -379,25 +379,25 @@ export default function BroadcastScreen() {
               <View style={styles.overlayTop}>
                 <View style={styles.liveBadge}>
                   <View style={styles.liveDot} />
-                  <Text style={styles.liveText}>{t('broadcast_live') || 'LIVE'}</Text>
+                  <Text style={styles.liveText}>{t('broadcast_live')}</Text>
                 </View>
                 <Text style={styles.viewerPill}>
-                  {viewers} {t('broadcast_viewers_watching') || 'watching'}
+                  {viewers} {t('broadcast_viewers_watching')}
                 </Text>
               </View>
               <View style={styles.overlayBottom}>
                 <Text style={styles.previewTitle}>{streamTitle}</Text>
                 <Text style={styles.previewMeta}>
-                  {formatDuration(duration)} | {normalizedAttractionName || 'Kenya'}
+                  {formatDuration(duration)} | {normalizedAttractionName || t('app_name')}
                 </Text>
               </View>
             </>
           ) : (
             <View style={styles.offlinePreview}>
               <Text style={styles.previewEmoji}>CAM</Text>
-              <Text style={styles.previewText}>{t('broadcast_camera_ready') || 'Camera ready'}</Text>
+              <Text style={styles.previewText}>{t('broadcast_camera_ready')}</Text>
               <Text style={styles.previewSub}>
-                {t('broadcast_tap_start') || 'Tap Start to go live'}
+                {t('broadcast_tap_start')}
               </Text>
             </View>
           )}
@@ -405,20 +405,20 @@ export default function BroadcastScreen() {
 
         {!streaming ? (
           <View style={styles.form}>
-            <Text style={styles.formTitle}>Stream Details</Text>
-            <Text style={styles.label}>Stream Title</Text>
+            <Text style={styles.formTitle}>{t('broadcast_stream_details')}</Text>
+            <Text style={styles.label}>{t('broadcast_stream_title')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Maasai Mara Sunset Watch"
+              placeholder={t('broadcast_stream_title_placeholder')}
               placeholderTextColor="#666"
               value={streamTitle}
               onChangeText={setStreamTitle}
             />
 
-            <Text style={styles.label}>Description</Text>
+            <Text style={styles.label}>{t('broadcast_description')}</Text>
             <TextInput
               style={[styles.input, styles.inputMultiline]}
-              placeholder="Tell viewers what you are showing live"
+              placeholder={t('broadcast_stream_desc_placeholder')}
               placeholderTextColor="#666"
               value={streamDesc}
               onChangeText={setStreamDesc}
@@ -426,21 +426,19 @@ export default function BroadcastScreen() {
               numberOfLines={3}
             />
 
-            <Text style={styles.locationNote}>Location: {normalizedAttractionName || 'Kenya'}</Text>
-            <Text style={styles.helperCopy}>
-              This stream uses your device camera and microphone directly in the app. Viewers can join from other devices through the live tab.
-            </Text>
+            <Text style={styles.locationNote}>{t('broadcast_location_prefix')}: {normalizedAttractionName || t('app_name')}</Text>
+            <Text style={styles.helperCopy}>{t('broadcast_helper_copy')}</Text>
           </View>
         ) : null}
 
         <View style={styles.controls}>
           <View style={styles.toggleRow}>
             <View style={styles.toggleCard}>
-              <Text style={styles.toggleLabel}>Camera</Text>
+              <Text style={styles.toggleLabel}>{t('broadcast_camera_label')}</Text>
               <Switch value={cameraEnabled} onValueChange={toggleCamera} trackColor={{ true: '#0FA37F' }} />
             </View>
             <View style={styles.toggleCard}>
-              <Text style={styles.toggleLabel}>Microphone</Text>
+              <Text style={styles.toggleLabel}>{t('broadcast_microphone_label')}</Text>
               <Switch value={micEnabled} onValueChange={toggleMicrophone} trackColor={{ true: '#0FA37F' }} />
             </View>
           </View>
@@ -448,18 +446,18 @@ export default function BroadcastScreen() {
           {streaming ? (
             <>
               <TouchableOpacity style={styles.secondaryBtn} onPress={switchCamera}>
-                <Text style={styles.secondaryBtnText}>Switch Camera</Text>
+                <Text style={styles.secondaryBtnText}>{t('broadcast_switch_camera')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.stopBtn}
                 onPress={() =>
                   Alert.alert(
-                    t('broadcast_stop_title') || 'Stop streaming?',
-                    t('broadcast_stop_copy') || 'This will end the live stream for all viewers.',
+                    t('broadcast_stop_title'),
+                    t('broadcast_stop_copy'),
                     [
-                      { text: t('back') || 'Cancel', style: 'cancel' },
+                      { text: t('back'), style: 'cancel' },
                       {
-                        text: t('broadcast_stop_stream') || 'Stop stream',
+                        text: t('broadcast_stop_stream'),
                         style: 'destructive',
                         onPress: () => {
                           void handleStopStream();
@@ -478,20 +476,20 @@ export default function BroadcastScreen() {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.startBtnText}>{t('broadcast_go_live') || 'Go Live'}</Text>
+                <Text style={styles.startBtnText}>{t('broadcast_go_live')}</Text>
               )}
             </TouchableOpacity>
           )}
 
           {streaming && normalizedAttractionId && normalizedAttractionId !== 'general' ? (
             <TouchableOpacity style={styles.navBtn} onPress={() => router.push(`/map/${normalizedAttractionId}`)}>
-              <Text style={styles.navBtnText}>{t('broadcast_gps_navigation') || 'GPS Navigation'}</Text>
+              <Text style={styles.navBtnText}>{t('broadcast_gps_navigation')}</Text>
             </TouchableOpacity>
           ) : null}
 
           {streaming ? (
             <Text style={styles.liveNote}>
-              {t('broadcast_you_are_live') || 'You are live'} {user?.name ? `as ${user.name}` : ''}.
+              {user?.name ? `${t('broadcast_live_as')} ${user.name}.` : t('broadcast_you_are_live')}
             </Text>
           ) : null}
 
@@ -499,11 +497,11 @@ export default function BroadcastScreen() {
 
           {sessionInfo ? (
             <View style={styles.debugCard}>
-              <Text style={styles.debugTitle}>Session Debug</Text>
-              <Text style={styles.debugText}>Channel: {sessionInfo.channelName}</Text>
-              <Text style={styles.debugText}>UID: {sessionInfo.uid}</Text>
-              <Text style={styles.debugText}>Role: {sessionInfo.role}</Text>
-              <Text style={styles.debugText}>Token: {sessionInfo.hasToken ? 'received' : 'missing'}</Text>
+              <Text style={styles.debugTitle}>{t('broadcast_session_debug')}</Text>
+              <Text style={styles.debugText}>{t('broadcast_debug_channel')}: {sessionInfo.channelName}</Text>
+              <Text style={styles.debugText}>{t('broadcast_debug_uid')}: {sessionInfo.uid}</Text>
+              <Text style={styles.debugText}>{t('broadcast_debug_role')}: {sessionInfo.role}</Text>
+              <Text style={styles.debugText}>{t('broadcast_debug_token')}: {sessionInfo.hasToken ? t('broadcast_token_received') : t('broadcast_token_missing')}</Text>
             </View>
           ) : null}
         </View>

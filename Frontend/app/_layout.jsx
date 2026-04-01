@@ -3,9 +3,11 @@ import { Redirect, Slot, useRootNavigationState, useSegments } from 'expo-router
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { LocalizationProvider } from '../context/LocalizationContext';
+import { ThemeProvider, useTheme } from '../context/ThemeContext';
 
 function RootNavigator() {
   const { isAuthenticated, loading } = useAuth();
+  const { theme } = useTheme();
   const segments = useSegments();
   const rootNavigationState = useRootNavigationState();
   const inAuthGroup = segments[0] === '(auth)';
@@ -15,8 +17,8 @@ function RootNavigator() {
 
   if (!rootNavigationState?.key || loading) {
     return (
-      <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#264E86" />
+      <View style={[styles.loadingScreen, { backgroundColor: theme.colors.screenMuted }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -35,11 +37,13 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <LocalizationProvider>
-          <RootNavigator />
-        </LocalizationProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <LocalizationProvider>
+            <RootNavigator />
+          </LocalizationProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
@@ -49,6 +53,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F6F1E8',
   },
 });

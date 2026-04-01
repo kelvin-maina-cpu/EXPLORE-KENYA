@@ -43,7 +43,7 @@ export default function LiveViewerScreen() {
   const [remoteUid, setRemoteUid] = useState(0);
   const [remoteVideoActive, setRemoteVideoActive] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
-  const [joiningText, setJoiningText] = useState(t('live_waiting') || 'Waiting for park camera...');
+  const [joiningText, setJoiningText] = useState(t('live_waiting'));
 
   useEffect(() => {
     void joinLiveSession();
@@ -90,7 +90,7 @@ export default function LiveViewerScreen() {
       onJoinChannelSuccess: async () => {
         joinedRef.current = true;
         setRemoteVideoActive(false);
-        setJoiningText(t('live_waiting') || 'Waiting for park camera...');
+        setJoiningText(t('live_waiting'));
 
         if (normalizedStreamId && !presenceSentRef.current) {
           presenceSentRef.current = true;
@@ -105,19 +105,19 @@ export default function LiveViewerScreen() {
       onUserJoined: (uid) => {
         setRemoteUid(uid);
         setRemoteVideoActive(false);
-        setJoiningText('Host joined. Waiting for video feed...');
+        setJoiningText(t('live_host_joined_waiting_video'));
       },
       onUserOffline: () => {
         setRemoteUid(0);
         setRemoteVideoActive(false);
-        setJoiningText(t('live_waiting') || 'Waiting for park camera...');
+        setJoiningText(t('live_waiting'));
       },
       onUserEnableVideo: (_connection, uid, enabled) => {
         if (uid === remoteUid || !remoteUid) {
           setRemoteUid(uid);
           setRemoteVideoActive(Boolean(enabled));
           setJoiningText(
-            enabled ? 'Connecting to live video...' : 'Host audio is live, but camera is off.'
+            enabled ? t('live_connecting_video') : t('live_audio_only')
           );
         }
       },
@@ -130,18 +130,18 @@ export default function LiveViewerScreen() {
 
         if (state === RemoteVideoState.RemoteVideoStateDecoding) {
           setRemoteVideoActive(true);
-          setJoiningText('Live video connected.');
+          setJoiningText(t('live_video_connected'));
           return;
         }
 
         if (state === RemoteVideoState.RemoteVideoStateStopped) {
           setRemoteVideoActive(false);
-          setJoiningText('Host audio is live, but camera is off.');
+          setJoiningText(t('live_audio_only'));
           return;
         }
 
         setRemoteVideoActive(false);
-        setJoiningText('Connecting to live video...');
+        setJoiningText(t('live_connecting_video'));
       },
       onLeaveChannel: () => {
         joinedRef.current = false;
@@ -159,7 +159,7 @@ export default function LiveViewerScreen() {
     try {
       setLoading(true);
       if (!normalizedStreamId) {
-        throw new Error('Live stream id is missing');
+        throw new Error(t('live_stream_id_missing'));
       }
 
       const [streamData, session] = await Promise.all([
@@ -168,7 +168,7 @@ export default function LiveViewerScreen() {
       ]);
 
       if (session.status !== 'live') {
-        throw new Error('This live session has already ended');
+        throw new Error(t('live_session_ended'));
       }
 
       setStream(streamData);
@@ -191,7 +191,7 @@ export default function LiveViewerScreen() {
       });
     } catch (error) {
       console.error('Live viewer join error:', error);
-      Alert.alert(t('error') || 'Error', error.response?.data?.message || error.message || t('live_failed_join'));
+      Alert.alert(t('error'), error.response?.data?.message || error.message || t('live_failed_join'));
       router.back();
     } finally {
       setLoading(false);
@@ -202,17 +202,17 @@ export default function LiveViewerScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.leaveBtn}>
-          <Text style={styles.leaveBtnText}>{t('live_leave') || 'Leave'}</Text>
+          <Text style={styles.leaveBtnText}>{t('live_leave')}</Text>
         </TouchableOpacity>
         <View style={styles.headerCopy}>
           <Text style={styles.headerTitle} numberOfLines={1}>
-            {stream?.title || t('live_title') || 'Live Stream'}
+            {stream?.title || t('live_default_title')}
           </Text>
           <Text style={styles.headerSub} numberOfLines={1}>
-            {stream?.locationName || stream?.attractionName || 'Explore Kenya'}
+            {stream?.locationName || stream?.attractionName || t('live_header_fallback')}
           </Text>
         </View>
-        <Text style={styles.viewerCount}>{viewerCount} watching</Text>
+        <Text style={styles.viewerCount}>{viewerCount} {t('live_watching_suffix')}</Text>
       </View>
 
       <View style={styles.videoWrap}>
@@ -231,17 +231,15 @@ export default function LiveViewerScreen() {
           <View style={styles.waitingState}>
             <Text style={styles.waitingTitle}>{joiningText}</Text>
             <Text style={styles.waitingCopy}>
-              The session is live, but the broadcaster has not published video yet.
+              {t('live_waiting')}
             </Text>
           </View>
         )}
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerTitle}>{stream?.hostName ? `Hosted by ${stream.hostName}` : 'Live session'}</Text>
-        <Text style={styles.footerCopy}>
-          Audio and video are streamed directly inside the app so viewers can join from different devices and locations.
-        </Text>
+        <Text style={styles.footerTitle}>{stream?.hostName ? `${t('live_footer_hosted_by')} ${stream.hostName}` : t('live_footer_session')}</Text>
+        <Text style={styles.footerCopy}>{t('live_footer_copy')}</Text>
       </View>
     </SafeAreaView>
   );

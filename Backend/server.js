@@ -17,6 +17,8 @@ const attractionRoutes = require('./routes/attractionRoutes');
 const wildlifeRoutes = require('./routes/wildlifeRoutes');
 const chatbotRoutes = require('./routes/chatbotRoutes');
 const liveStreamRoutes = require('./routes/liveStreamRoutes');
+const flightRoutes = require('./routes/flightRoutes');
+const weatherRoutes = require('./routes/weatherRoutes');
 const errorHandler = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -55,6 +57,8 @@ connectDB()
     app.use('/api/wildlife', wildlifeRoutes);
     app.use('/api/chatbot', chatbotRoutes);
     app.use('/api/live-streams', liveStreamRoutes);
+    app.use('/api/flights', flightRoutes);
+    app.use('/api/weather', weatherRoutes);
     app.use('/api/bookings', require('./routes/bookingRoutes'));
     app.use('/api/mpesa', require('./routes/mpesaRoutes'));
 

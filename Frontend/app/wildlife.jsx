@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
 import { useLocale } from '../context/LocalizationContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function WildlifeScreen() {
   const { search: initialSearchParam } = useLocalSearchParams();
@@ -22,6 +23,7 @@ export default function WildlifeScreen() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { t } = useLocale();
+  const { theme } = useTheme();
 
   useEffect(() => {
     setSearch(initialSearch);
@@ -47,43 +49,44 @@ export default function WildlifeScreen() {
   }, [search]);
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: theme.colors.screen }]}>
       <FlatList
         data={wildlife}
         keyExtractor={(item) => item._id}
         renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.title}>{item.speciesName}</Text>
-            <Text style={styles.region}>{item.region}</Text>
-            <Text style={styles.sectionLabel}>{t('wildlife_habitat')}</Text>
-            <Text style={styles.copy}>{item.habitat}</Text>
-            <Text style={styles.sectionLabel}>{t('wildlife_conservation')}</Text>
-            <Text style={styles.copy}>{item.conservationInfo}</Text>
+          <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <Text style={[styles.title, { color: theme.colors.text }]}>{item.speciesName}</Text>
+            <Text style={[styles.region, { color: theme.colors.secondary }]}>{item.region}</Text>
+            <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>{t('wildlife_habitat')}</Text>
+            <Text style={[styles.copy, { color: theme.colors.textSoft }]}>{item.habitat}</Text>
+            <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>{t('wildlife_conservation')}</Text>
+            <Text style={[styles.copy, { color: theme.colors.textSoft }]}>{item.conservationInfo}</Text>
           </View>
         )}
         ListHeaderComponent={
           <View style={styles.headerWrap}>
-            <View style={styles.heroCard}>
+            <View style={[styles.heroCard, { backgroundColor: theme.colors.hero }]}>
               <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+                <Ionicons name="arrow-back" size={20} color={theme.colors.heroText} />
               </TouchableOpacity>
-              <Text style={styles.eyebrow}>{t('wildlife_library')}</Text>
-              <Text style={styles.heroTitle}>{t('wildlife_title')}</Text>
-              <Text style={styles.heroCopy}>{t('wildlife_copy_2')}</Text>
+              <Text style={[styles.eyebrow, { color: theme.colors.heroEyebrow }]}>{t('wildlife_library')}</Text>
+              <Text style={[styles.heroTitle, { color: theme.colors.heroText }]}>{t('wildlife_title')}</Text>
+              <Text style={[styles.heroCopy, { color: theme.colors.heroMuted }]}>{t('wildlife_copy_2')}</Text>
             </View>
 
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.inputText }]}
               value={search}
               onChangeText={setSearch}
               placeholder={t('wildlife_search_placeholder')}
+              placeholderTextColor={theme.colors.placeholder}
             />
           </View>
         }
         ListEmptyComponent={
-          <View style={styles.loadingCard}>
-            {loading ? <ActivityIndicator size="large" color="#264E86" /> : null}
-            <Text style={styles.loadingText}>{loading ? t('loading') : t('wildlife_empty')}</Text>
+          <View style={[styles.loadingCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            {loading ? <ActivityIndicator size="large" color={theme.colors.primary} /> : null}
+            <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>{loading ? t('loading') : t('wildlife_empty')}</Text>
           </View>
         }
         contentContainerStyle={styles.content}

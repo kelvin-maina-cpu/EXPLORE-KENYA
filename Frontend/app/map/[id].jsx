@@ -857,8 +857,8 @@ export default function AttractionMapScreen() {
         <View style={styles.infoHeader}>
           <Text style={styles.infoTitle}>{t('map_nav_title')}</Text>
           <View style={styles.routeStatusWrap}>
-            {routeMode === 'online' ? <Text style={styles.onlineBadge}>Exact route</Text> : null}
-            {routeMode === 'offline' ? <Text style={styles.offlineBadge}>Offline preview</Text> : null}
+            {routeMode === 'online' ? <Text style={styles.onlineBadge}>{t('map_exact_route')}</Text> : null}
+            {routeMode === 'offline' ? <Text style={styles.offlineBadge}>{t('map_offline_preview')}</Text> : null}
             {routeLoading ? <ActivityIndicator size="small" color="#264E86" /> : null}
           </View>
         </View>

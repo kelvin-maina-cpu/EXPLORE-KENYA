@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import * as LocalAuthentication from 'expo-local-authentication';
 import api, { clearSessionToken, setSessionToken } from '../services/api';
 
 const AuthContext = createContext();
@@ -11,7 +13,11 @@ const SAVED_LOGIN_EMAIL_KEY = 'savedLoginEmail';
 const SAVED_LOGIN_PASSWORD_KEY = 'savedLoginPassword';
 
 const getLocalAuthenticationModule = () => {
-  return null;
+  if (Platform.OS === 'web') {
+    return null;
+  }
+
+  return LocalAuthentication;
 };
 
 const extractAuthPayload = (data) => {
@@ -211,25 +217,25 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Fingerprint login is not available in this build. Use a development build or production build with biometric support.');
       }
 
-      const [email, password] = await Promise.all([
-        SecureStore.getItemAsync(BIOMETRIC_EMAIL_KEY),
-        SecureStore.getItemAsync(BIOMETRIC_PASSWORD_KEY, {
-          requireAuthentication: true,
-        }),
-      ]);
-
-      if (!email || !password) {
-        throw new Error('Biometric login has not been enabled for this account yet.');
-      }
+      const email = await SecureStore.getItemAsync(BIOMETRIC_EMAIL_KEY);
 
       const authResult = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Authenticate to sign in to Explore Kenya',
         cancelLabel: 'Cancel',
         fallbackLabel: 'Use device passcode',
+        disableDeviceFallback: false,
       });
 
       if (!authResult.success) {
         throw new Error('Biometric authentication was cancelled or failed.');
+      }
+
+      const password = await SecureStore.getItemAsync(BIOMETRIC_PASSWORD_KEY, {
+        requireAuthentication: true,
+      });
+
+      if (!email || !password) {
+        throw new Error('Biometric login has not been enabled for this account yet.');
       }
 
       const result = await login(email, password);

@@ -4,18 +4,20 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getMyBookings } from '../../services/api';
 import { useLocale } from '../../context/LocalizationContext';
-
-const STATUS_COLORS = {
-  paid: { bg: '#E1F5EE', text: '#0F6E56' },
-  pending: { bg: '#FAEEDA', text: '#BA7517' },
-  failed: { bg: '#FCEBEB', text: '#A32D2D' },
-};
+import { useTheme } from '../../context/ThemeContext';
 
 export default function BookingsScreen() {
   const router = useRouter();
   const { t } = useLocale();
+  const { theme } = useTheme();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const statusColors = {
+    paid: { bg: theme.colors.tabActiveBackground, text: theme.colors.secondary },
+    pending: { bg: '#FAEEDA', text: '#BA7517' },
+    failed: { bg: '#FCEBEB', text: '#A32D2D' },
+  };
 
   useEffect(() => {
     void fetchBookings();
@@ -36,7 +38,7 @@ export default function BookingsScreen() {
 
   const renderBooking = ({ item }) => {
     const status = item.paymentStatus || 'pending';
-    const colors = STATUS_COLORS[status] || STATUS_COLORS.pending;
+    const colors = statusColors[status] || statusColors.pending;
     const statusLabel =
       status === 'paid'
         ? t('status_paid')
@@ -45,11 +47,11 @@ export default function BookingsScreen() {
           : t('status_pending');
 
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <View style={styles.cardTop}>
           <View>
-            <Text style={styles.cardTitle}>{item.attractionId?.name || t('bookings_attraction')}</Text>
-            <Text style={styles.cardDate}>
+            <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{item.attractionId?.name || t('bookings_attraction')}</Text>
+            <Text style={[styles.cardDate, { color: theme.colors.textMuted }]}>
               {new Date(item.date).toLocaleDateString('en-KE', {
                 weekday: 'short',
                 day: 'numeric',
@@ -58,33 +60,33 @@ export default function BookingsScreen() {
               })}
             </Text>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: colors.bg }]}>
+        <View style={[styles.statusBadge, { backgroundColor: colors.bg }]}>
             <Text style={[styles.statusText, { color: colors.text }]}>
               {statusLabel}
             </Text>
           </View>
         </View>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
         <View style={styles.cardDetails}>
           <View style={styles.detail}>
-            <Text style={styles.detailLabel}>{t('bookings_package')}</Text>
-            <Text style={styles.detailValue}>{item.package}</Text>
+            <Text style={[styles.detailLabel, { color: theme.colors.placeholder }]}>{t('bookings_package')}</Text>
+            <Text style={[styles.detailValue, { color: theme.colors.text }]}>{item.package}</Text>
           </View>
           <View style={styles.detail}>
-            <Text style={styles.detailLabel}>{t('bookings_visitors')}</Text>
-            <Text style={styles.detailValue}>{item.participants}</Text>
+            <Text style={[styles.detailLabel, { color: theme.colors.placeholder }]}>{t('bookings_visitors')}</Text>
+            <Text style={[styles.detailValue, { color: theme.colors.text }]}>{item.participants}</Text>
           </View>
           <View style={styles.detail}>
-            <Text style={styles.detailLabel}>{t('bookings_total')}</Text>
-            <Text style={styles.detailValue}>KES {item.totalAmount?.toLocaleString()}</Text>
+            <Text style={[styles.detailLabel, { color: theme.colors.placeholder }]}>{t('bookings_total')}</Text>
+            <Text style={[styles.detailValue, { color: theme.colors.text }]}>KES {item.totalAmount?.toLocaleString()}</Text>
           </View>
         </View>
 
         {item.mpesaReceiptNumber ? (
-          <View style={styles.receipt}>
-            <Text style={styles.receiptText}>{t('bookings_receipt')}: {item.mpesaReceiptNumber}</Text>
+          <View style={[styles.receipt, { backgroundColor: theme.colors.tabActiveBackground }]}>
+            <Text style={[styles.receiptText, { color: theme.colors.secondary }]}>{t('bookings_receipt')}: {item.mpesaReceiptNumber}</Text>
           </View>
         ) : null}
       </View>
@@ -92,23 +94,23 @@ export default function BookingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('bookings_title')}</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.screenMuted }]}>
+      <View style={[styles.header, { backgroundColor: theme.colors.secondary }]}>
+        <Text style={[styles.headerTitle, { color: theme.colors.secondaryText }]}>{t('bookings_title')}</Text>
         <TouchableOpacity onPress={() => router.push('/attractions')}>
-          <Text style={styles.newBooking}>{t('bookings_new')}</Text>
+          <Text style={[styles.newBooking, { color: 'rgba(255,255,255,0.9)' }]}>{t('bookings_new')}</Text>
         </TouchableOpacity>
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#0F6E56" style={styles.loader} />
+        <ActivityIndicator size="large" color={theme.colors.secondary} style={styles.loader} />
       ) : bookings.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>{'\u{1F4CB}'}</Text>
-          <Text style={styles.emptyTitle}>{t('bookings_none_title')}</Text>
-          <Text style={styles.emptyDesc}>{t('bookings_none_desc')}</Text>
-          <TouchableOpacity style={styles.exploreBtn} onPress={() => router.push('/attractions')}>
-            <Text style={styles.exploreBtnText}>{t('bookings_explore_cta')}</Text>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>{t('bookings_none_title')}</Text>
+          <Text style={[styles.emptyDesc, { color: theme.colors.textMuted }]}>{t('bookings_none_desc')}</Text>
+          <TouchableOpacity style={[styles.exploreBtn, { backgroundColor: theme.colors.secondary }]} onPress={() => router.push('/attractions')}>
+            <Text style={[styles.exploreBtnText, { color: theme.colors.secondaryText }]}>{t('bookings_explore_cta')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
