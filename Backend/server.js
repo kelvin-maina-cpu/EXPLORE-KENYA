@@ -25,6 +25,8 @@ const errorHandler = require('./middleware/errorMiddleware');
 
 const app = express();
 const adminDashboardPath = path.resolve(__dirname, '../Frontend/web-admin');
+const frontendAssetsPath = path.resolve(__dirname, '../Frontend/assets');
+const faviconPath = path.resolve(frontendAssetsPath, 'favicon.png');
 app.use(cors());
 app.use(express.json());
 
@@ -53,6 +55,11 @@ connectDB()
     startPoller();
 
     app.get('/', (req, res) => res.json({ message: 'Explore Kenya API' }));
+    if (fs.existsSync(faviconPath)) {
+      app.get('/favicon.ico', (req, res) => {
+        res.sendFile(faviconPath);
+      });
+    }
     if (fs.existsSync(adminDashboardPath)) {
       app.use('/admin-dashboard', express.static(adminDashboardPath));
     }
