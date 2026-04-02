@@ -38,9 +38,7 @@ const STATUS_COLORS = {
 };
 
 export default function TravelPlannerScreen() {
-useState('weather');
-  const { t, language } = useLocale();
-  const { theme } = useTheme();
+  const [activeTab, setActiveTab] = useState('weather');
   const [flightMode, setFlightMode] = useState('departures');
   const [weatherData, setWeatherData] = useState([]);
   const [forecastData, setForecastData] = useState([]);
