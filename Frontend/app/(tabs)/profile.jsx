@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
   Alert,
-  Linking,
   ScrollView,
   StyleSheet,
   Switch,
@@ -16,7 +15,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { AVAILABLE_LANGUAGES, useLocale } from '../../context/LocalizationContext';
 import { useTheme } from '../../context/ThemeContext';
-import { API_ORIGIN } from '../../services/api';
 
 const availableInterests = ['wildlife', 'culture', 'adventure', 'history'];
 
@@ -70,22 +68,6 @@ const { theme, isDarkMode, toggleTheme } = useTheme();
         ? current.interests.filter((item) => item !== interest)
         : [...current.interests, interest],
     }));
-  };
-
-  const handleOpenAdminDashboard = async () => {
-    const dashboardUrl = `${API_ORIGIN}/admin-dashboard`;
-
-    try {
-      const supported = await Linking.canOpenURL(dashboardUrl);
-      if (!supported) {
-        Alert.alert('Admin Dashboard', `Open this link in your browser: ${dashboardUrl}`);
-        return;
-      }
-
-      await Linking.openURL(dashboardUrl);
-    } catch {
-      Alert.alert('Admin Dashboard', `Open this link in your browser: ${dashboardUrl}`);
-    }
   };
 
   const handleSave = async () => {
@@ -187,10 +169,10 @@ const { theme, isDarkMode, toggleTheme } = useTheme();
             <TouchableOpacity
               style={[styles.adminButton, { backgroundColor: colors.secondary }]}
               onPress={() => {
-                void handleOpenAdminDashboard();
+                router.push('/admin-dashboard');
               }}
             >
-              <MaterialCommunityIcons name="open-in-new" size={18} color={colors.secondaryText} />
+              <MaterialCommunityIcons name="view-dashboard-outline" size={18} color={colors.secondaryText} />
               <Text style={[styles.adminButtonText, { color: colors.secondaryText }]}>Open Admin Dashboard</Text>
             </TouchableOpacity>
           </View>

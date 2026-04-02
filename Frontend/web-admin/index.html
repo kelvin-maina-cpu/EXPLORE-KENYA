@@ -13,25 +13,27 @@
           <p class="eyebrow">Explore Kenya</p>
           <h1>Admin Dashboard</h1>
           <p class="muted">
-            Manage tours, attractions, bookings, and quick media uploads from one place.
+            Real-time operations for tours, attractions, bookings, and media in one management workspace.
           </p>
         </div>
 
         <div class="credentials">
-          <h2>Demo Logins</h2>
+          <h2>Operations</h2>
           <div class="credential-card">
-            <span>Admin</span>
-            <strong>admin@explorekenya.com</strong>
-            <small>Password: Admin123!</small>
+            <span>Catalog</span>
+            <strong>Tours and attractions</strong>
+            <small>Create, update, feature, and retire inventory.</small>
           </div>
           <div class="credential-card">
-            <span>User</span>
-            <strong>traveler@explorekenya.com</strong>
-            <small>Password: User123!</small>
+            <span>Reservations</span>
+            <strong>Customer bookings</strong>
+            <small>Track payment status, travelers, and recent demand.</small>
           </div>
-          <p class="muted small">
-            Run <code>npm run seed:demo-users</code> in <code>Backend</code> if these accounts do not exist yet.
-          </p>
+          <div class="credential-card">
+            <span>Media</span>
+            <strong>Cloudinary uploads</strong>
+            <small>Upload assets and reuse them across the app.</small>
+          </div>
         </div>
       </aside>
 
@@ -63,6 +65,10 @@
               <p class="eyebrow">Control Center</p>
               <h2 id="welcome-title">Welcome</h2>
               <p id="welcome-copy" class="muted"></p>
+            </div>
+            <div class="sync-meta">
+              <span class="muted">Last sync</span>
+              <strong id="last-sync">Just now</strong>
             </div>
             <div class="topbar-actions">
               <button id="refresh-all" class="btn btn-secondary">Refresh</button>
@@ -155,6 +161,9 @@
                     <h3>Existing Tours</h3>
                   </div>
                 </div>
+                <div class="section-tools">
+                  <input id="tour-search" type="search" placeholder="Search tours by title or location" />
+                </div>
                 <div id="tour-list" class="list"></div>
               </article>
             </div>
@@ -210,6 +219,9 @@
                     <h3>Existing Attractions</h3>
                   </div>
                 </div>
+                <div class="section-tools">
+                  <input id="attraction-search" type="search" placeholder="Search attractions by name or county" />
+                </div>
                 <div id="attraction-list" class="list"></div>
               </article>
             </div>
@@ -222,6 +234,15 @@
                   <p class="eyebrow">Reservations</p>
                   <h3>All Customer Bookings</h3>
                 </div>
+              </div>
+              <div class="section-tools booking-tools">
+                <input id="booking-search" type="search" placeholder="Search by booking code, traveler, or attraction" />
+                <select id="booking-status-filter">
+                  <option value="all">All statuses</option>
+                  <option value="paid">Paid</option>
+                  <option value="pending">Pending</option>
+                  <option value="failed">Failed</option>
+                </select>
               </div>
               <div id="booking-list" class="list"></div>
             </article>
@@ -247,10 +268,11 @@
                 <div class="section-head">
                   <div>
                     <p class="eyebrow">Result</p>
-                    <h3>Uploaded Asset</h3>
+                    <h3>Media Library</h3>
                   </div>
                 </div>
                 <div id="upload-result" class="upload-result muted">No upload yet.</div>
+                <div id="upload-library" class="list upload-library"></div>
               </article>
             </div>
           </section>

@@ -6,7 +6,7 @@ import { LocalizationProvider } from '../context/LocalizationContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 
 function RootNavigator() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const { theme } = useTheme();
   const segments = useSegments();
   const rootNavigationState = useRootNavigationState();
@@ -28,7 +28,7 @@ function RootNavigator() {
   }
 
   if (isAuthenticated && (inAuthGroup || onWelcomeScreen)) {
-    return <Redirect href="/attractions" />;
+    return <Redirect href={user?.role === 'admin' ? '/admin-dashboard' : '/attractions'} />;
   }
 
   return <Slot />;

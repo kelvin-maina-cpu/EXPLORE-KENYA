@@ -157,7 +157,7 @@ export const AuthProvider = ({ children }) => {
       await SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(user));
       await persistBiometricSetupCredentials(normalizedEmail, normalizedPassword);
       dispatch({ type: 'LOGIN', payload: user });
-      return { success: true };
+      return { success: true, user };
     } catch (error) {
       return { success: false, error: error.response?.data?.message || error.message || 'Login failed' };
     } finally {

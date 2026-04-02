@@ -7,12 +7,20 @@ const state = {
   attractions: [],
   bookings: [],
   stats: null,
+  uploadedAssets: JSON.parse(localStorage.getItem('adminUploadedAssets') || '[]'),
+  filters: {
+    tourQuery: '',
+    attractionQuery: '',
+    bookingQuery: '',
+    bookingStatus: 'all',
+  },
 };
 
 const $ = (id) => document.getElementById(id);
 const loginView = $('login-view');
 const dashboardView = $('dashboard-view');
 const loginError = $('login-error');
+const lastSync = $('last-sync');
 
 const parseCsv = (value) =>
   `${value || ''}`.split(',').map((item) => item.trim()).filter(Boolean);
@@ -83,6 +91,10 @@ const saveSession = () => {
   localStorage.setItem('adminUser', JSON.stringify(state.user));
 };
 
+const saveUploadedAssets = () => {
+  localStorage.setItem('adminUploadedAssets', JSON.stringify(state.uploadedAssets));
+};
+
 const clearSession = () => {
   state.token = '';
   state.user = null;
@@ -98,6 +110,7 @@ const renderStats = () => {
   $('stat-revenue').textContent = currency(stats.revenue || 0);
   $('welcome-title').textContent = `Welcome, ${state.user?.name || 'Admin'}`;
   $('welcome-copy').textContent = `${state.user?.email || ''} • role: ${state.user?.role || 'admin'}`;
+  lastSync.textContent = new Date().toLocaleString();
 
   const recentBookings = stats.recentBookings || [];
   $('recent-bookings').innerHTML = recentBookings.length
@@ -143,24 +156,32 @@ const resetTourForm = () => {
 };
 
 const renderTours = () => {
-  $('tour-list').innerHTML = state.tours.length
-    ? state.tours.map((tour) => `
+  const query = state.filters.tourQuery.toLowerCase();
+  const tours = state.tours.filter((tour) =>
+    !query ||
+    `${tour.title || ''}`.toLowerCase().includes(query) ||
+    `${tour.location || ''}`.toLowerCase().includes(query)
+  );
+
+  $('tour-list').innerHTML = tours.length
+    ? tours.map((tour) => `
         <article class="item-card">
           <div class="item-card-head">
             <div>
-              <strong>${tour.title}</strong>
+              <strong>${tour.title}${tour.featured ? ' • Featured' : ''}</strong>
               <p class="muted">${tour.location} • ${currency(tour.price)} • ${tour.duration}</p>
             </div>
             <span class="pill ${tour.isActive ? 'success' : 'warn'}">${tour.isActive ? 'Active' : 'Inactive'}</span>
           </div>
           <p class="muted">${tour.description}</p>
+          <p class="muted">Images: ${(tour.images || []).length} • Includes: ${(tour.includes || []).length} items</p>
           <div class="item-actions">
             <button class="btn btn-secondary" data-tour-edit="${tour._id}">Edit</button>
             <button class="btn btn-ghost" data-tour-delete="${tour._id}">Delete</button>
           </div>
         </article>
       `).join('')
-    : '<p class="muted">No tours yet.</p>';
+    : '<p class="muted">No tours match this search yet.</p>';
 };
 
 const fillAttractionForm = (attraction) => {
@@ -190,8 +211,15 @@ const resetAttractionForm = () => {
 };
 
 const renderAttractions = () => {
-  $('attraction-list').innerHTML = state.attractions.length
-    ? state.attractions.map((attraction) => `
+  const query = state.filters.attractionQuery.toLowerCase();
+  const attractions = state.attractions.filter((attraction) =>
+    !query ||
+    `${attraction.name || ''}`.toLowerCase().includes(query) ||
+    `${attraction.county || ''}`.toLowerCase().includes(query)
+  );
+
+  $('attraction-list').innerHTML = attractions.length
+    ? attractions.map((attraction) => `
         <article class="item-card">
           <div class="item-card-head">
             <div>
@@ -201,18 +229,34 @@ const renderAttractions = () => {
             <span class="pill ${attraction.isActive ? 'success' : 'warn'}">${attraction.isActive ? 'Active' : 'Inactive'}</span>
           </div>
           <p class="muted">${attraction.description}</p>
+          <p class="muted">Highlights: ${(attraction.highlights || []).length} • Images: ${(attraction.images || []).length}</p>
           <div class="item-actions">
             <button class="btn btn-secondary" data-attraction-edit="${attraction._id}">Edit</button>
             <button class="btn btn-ghost" data-attraction-delete="${attraction._id}">Delete</button>
           </div>
         </article>
       `).join('')
-    : '<p class="muted">No attractions yet.</p>';
+    : '<p class="muted">No attractions match this search yet.</p>';
 };
 
 const renderBookings = () => {
-  $('booking-list').innerHTML = state.bookings.length
-    ? state.bookings.map((booking) => `
+  const query = state.filters.bookingQuery.toLowerCase();
+  const statusFilter = state.filters.bookingStatus;
+  const bookings = state.bookings.filter((booking) => {
+    const matchesStatus = statusFilter === 'all' || `${booking.paymentStatus || ''}`.toLowerCase() === statusFilter;
+    const haystack = [
+      booking.bookingRef,
+      booking.bookingCode,
+      booking.userId?.name,
+      booking.userId?.email,
+      booking.attractionId?.name,
+    ].join(' ').toLowerCase();
+
+    return matchesStatus && (!query || haystack.includes(query));
+  });
+
+  $('booking-list').innerHTML = bookings.length
+    ? bookings.map((booking) => `
         <article class="booking-card">
           <div class="booking-card-head">
             <div>
@@ -226,7 +270,19 @@ const renderBookings = () => {
           <p class="muted">Amount paid: ${currency(booking.amountPaid || 0)} • Total: ${currency(booking.totalAmount || 0)}</p>
         </article>
       `).join('')
-    : '<p class="muted">No bookings yet.</p>';
+    : '<p class="muted">No bookings match the current filters.</p>';
+};
+
+const renderUploadLibrary = () => {
+  $('upload-library').innerHTML = state.uploadedAssets.length
+    ? state.uploadedAssets.map((asset) => `
+        <article class="upload-asset">
+          <strong>${asset.public_id || 'Uploaded asset'}</strong>
+          <p class="muted"><a href="${asset.url}" target="_blank" rel="noreferrer">${asset.url}</a></p>
+          <img src="${asset.url}" alt="${asset.public_id || 'Uploaded asset'}" />
+        </article>
+      `).join('')
+    : '<p class="muted">Uploaded images will appear here.</p>';
 };
 
 const openTab = (tabName) => {
@@ -253,6 +309,7 @@ const loadAll = async () => {
   renderTours();
   renderAttractions();
   renderBookings();
+  renderUploadLibrary();
 };
 
 const showDashboard = () => {
@@ -292,6 +349,26 @@ $('login-form').addEventListener('submit', async (event) => {
 $('logout-btn').addEventListener('click', () => {
   clearSession();
   showLogin();
+});
+
+$('tour-search').addEventListener('input', (event) => {
+  state.filters.tourQuery = event.target.value.trim();
+  renderTours();
+});
+
+$('attraction-search').addEventListener('input', (event) => {
+  state.filters.attractionQuery = event.target.value.trim();
+  renderAttractions();
+});
+
+$('booking-search').addEventListener('input', (event) => {
+  state.filters.bookingQuery = event.target.value.trim();
+  renderBookings();
+});
+
+$('booking-status-filter').addEventListener('change', (event) => {
+  state.filters.bookingStatus = event.target.value;
+  renderBookings();
 });
 
 $('refresh-all').addEventListener('click', async () => {
@@ -439,11 +516,14 @@ $('upload-form').addEventListener('submit', async (event) => {
   try {
     const response = await api('/upload/image', { method: 'POST', body: formData });
     setMessage(feedback, 'Image uploaded successfully.');
+    state.uploadedAssets = [response, ...state.uploadedAssets].slice(0, 12);
+    saveUploadedAssets();
     result.innerHTML = `
       <p><strong>URL:</strong> <a href="${response.url}" target="_blank" rel="noreferrer">${response.url}</a></p>
       <p><strong>Public ID:</strong> ${response.public_id}</p>
       <img src="${response.url}" alt="Uploaded asset" />
     `;
+    renderUploadLibrary();
   } catch (error) {
     setMessage(feedback, error.message, true);
   }

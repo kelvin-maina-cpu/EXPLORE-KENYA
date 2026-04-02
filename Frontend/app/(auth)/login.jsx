@@ -7,7 +7,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useLocale } from '../../context/LocalizationContext';
 import { useTheme } from '../../context/ThemeContext';
 
+const ADMIN_CREDENTIALS = {
+  email: 'admin@explorekenya.com',
+  password: 'Admin123!',
+};
+
 export default function Login() {
+  const [loginMode, setLoginMode] = useState('user');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const {
@@ -23,20 +29,32 @@ export default function Login() {
   const { t } = useLocale();
   const { theme } = useTheme();
   const router = useRouter();
-  const postLoginRoute = '/(tabs)/home';
   const colors = theme.colors;
 
   useEffect(() => {
-    if (savedCredentials?.email && !email) {
+    if (loginMode === 'user' && savedCredentials?.email && !email) {
       setEmail(savedCredentials.email);
     }
-  }, [savedCredentials]);
+  }, [email, loginMode, savedCredentials]);
+
+  useEffect(() => {
+    if (loginMode === 'admin') {
+      setEmail(ADMIN_CREDENTIALS.email);
+      setPassword(ADMIN_CREDENTIALS.password);
+      return;
+    }
+
+    setEmail(savedCredentials?.email || '');
+    setPassword(savedCredentials?.password || '');
+  }, [loginMode, savedCredentials]);
+
+  const getPostLoginRoute = (signedInUser) => (signedInUser?.role === 'admin' ? '/admin-dashboard' : '/(tabs)/home');
 
   const handleLogin = async () => {
     const trimmedEmail = email.trim();
     const result = await login(trimmedEmail, password);
     if (result.success) {
-      router.replace(postLoginRoute);
+      router.replace(getPostLoginRoute(result.user));
     } else {
       Alert.alert(t('error'), result.error);
     }
@@ -45,7 +63,7 @@ export default function Login() {
   const handleBiometricLogin = async () => {
     const result = await loginWithBiometrics();
     if (result.success) {
-      router.replace(postLoginRoute);
+      router.replace(getPostLoginRoute(result.user));
     } else {
       Alert.alert(t('error'), result.error);
     }
@@ -61,6 +79,62 @@ export default function Login() {
         </View>
 
         <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.modeRow}>
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                { backgroundColor: colors.cardSoft, borderColor: colors.border },
+                loginMode === 'user' && { backgroundColor: colors.primary, borderColor: colors.primary },
+              ]}
+              onPress={() => setLoginMode('user')}
+            >
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  { color: colors.textMuted },
+                  loginMode === 'user' && { color: colors.primaryText },
+                ]}
+              >
+                Login As User
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                { backgroundColor: colors.cardSoft, borderColor: colors.border },
+                loginMode === 'admin' && { backgroundColor: colors.secondary, borderColor: colors.secondary },
+              ]}
+              onPress={() => setLoginMode('admin')}
+            >
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  { color: colors.textMuted },
+                  loginMode === 'admin' && { color: colors.secondaryText },
+                ]}
+              >
+                Login As Admin
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {loginMode === 'admin' ? (
+            <View
+              style={[
+                styles.adminHintCard,
+                { backgroundColor: colors.successSoft, borderColor: colors.successBorder },
+              ]}
+            >
+              <Text style={[styles.adminHintTitle, { color: colors.successText }]}>Admin Access</Text>
+              <Text style={[styles.adminHintCopy, { color: colors.text }]}>
+                Email: {ADMIN_CREDENTIALS.email}
+              </Text>
+              <Text style={[styles.adminHintCopy, { color: colors.text }]}>
+                Password: {ADMIN_CREDENTIALS.password}
+              </Text>
+            </View>
+          ) : null}
+
           {savedCredentials?.email ? (
             <View
               style={[
@@ -261,6 +335,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginTop: 4,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modeButton: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeButtonText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  adminHintCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    gap: 4,
+  },
+  adminHintTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  adminHintCopy: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '700',
   },
   suggestionButton: {
     flex: 1,

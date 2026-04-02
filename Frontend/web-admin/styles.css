@@ -72,6 +72,12 @@ button, input, select, textarea { font: inherit; }
 .inline-checks,
 .item-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
+.sync-meta {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -111,6 +117,16 @@ button, input, select, textarea { font: inherit; }
 }
 
 .stack, .list { display: grid; gap: 14px; }
+
+.section-tools {
+  padding: 0 22px 18px;
+}
+
+.booking-tools {
+  display: grid;
+  grid-template-columns: 1fr 180px;
+  gap: 12px;
+}
 
 .section-head {
   display: flex;
@@ -196,6 +212,23 @@ textarea { resize: vertical; }
   border-color: var(--line);
 }
 
+.upload-library {
+  padding: 0 22px 22px;
+}
+
+.upload-asset {
+  border: 1px solid var(--line);
+  background: #fff8ef;
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.upload-asset img {
+  width: 100%;
+  border-radius: 14px;
+  margin-top: 10px;
+}
+
 .item-card-head,
 .booking-card-head {
   display: flex;
@@ -251,4 +284,6 @@ code {
   .main { padding: 18px; }
   .topbar { flex-direction: column; align-items: flex-start; }
   .inline-fields { grid-template-columns: 1fr; }
+  .booking-tools { grid-template-columns: 1fr; }
+  .sync-meta { justify-items: start; }
 }
