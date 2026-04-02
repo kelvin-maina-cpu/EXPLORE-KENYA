@@ -96,8 +96,8 @@ export default function TravelPlannerScreen() {
         : `/flights/arrivals?icao=${selectedAirport.icao}`;
       const { data } = await api.get(endpoint);
       setFlights(data.flights || []);
-    } catch {
-      setError('Failed to load flights. Try again later.');
+    } catch (error) {
+      setError(error.response?.data?.message || 'Failed to load flights. Try again later.');
       setFlights([]);
     } finally {
       setLoadingFlights(false);
@@ -111,8 +111,8 @@ export default function TravelPlannerScreen() {
       setError(null);
       const { data } = await api.get(`/flights/search?flight=${flightSearch.trim()}`);
       setFlights(data.flights || []);
-    } catch {
-      setError(`Flight ${flightSearch} not found.`);
+    } catch (error) {
+      setError(error.response?.data?.message || `Flight ${flightSearch} not found.`);
       setFlights([]);
     } finally {
       setLoadingFlights(false);

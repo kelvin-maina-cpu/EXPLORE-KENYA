@@ -24,7 +24,7 @@ function RootNavigator() {
   }
 
   if (!isAuthenticated && !inAuthGroup && !onWelcomeScreen && !onAboutScreen && !onLanguagesScreen) {
-    return <Redirect href="/" />;
+    return <Redirect href="/(auth)/login" />;
   }
 
   if (isAuthenticated && (inAuthGroup || onWelcomeScreen)) {
