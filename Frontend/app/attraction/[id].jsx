@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,6 +28,8 @@ const CATEGORY_ICONS = {
 const formatCurrency = (amount) => `KES ${Number(amount || 0).toLocaleString('en-KE')}`;
 
 export default function AttractionDetailsScreen() {
+  const { width } = useWindowDimensions();
+  const isCompact = width < 390;
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { t } = useLocale();
@@ -37,6 +40,7 @@ export default function AttractionDetailsScreen() {
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherError, setWeatherError] = useState('');
   const [weather, setWeather] = useState(null);
+  const [weatherNotice, setWeatherNotice] = useState('');
 
   useEffect(() => {
     const loadAttraction = async () => {
@@ -74,6 +78,7 @@ export default function AttractionDetailsScreen() {
     try {
       setWeatherLoading(true);
       setWeatherError('');
+      setWeatherNotice('');
 
       const query = latitude !== null && longitude !== null
         ? `/weather/current?lat=${latitude}&lon=${longitude}`
@@ -81,8 +86,9 @@ export default function AttractionDetailsScreen() {
 
       const { data } = await api.get(query);
       setWeather(data.weather || null);
+      setWeatherNotice(data.message || '');
     } catch (loadError) {
-      setWeatherError(loadError.response?.data?.message || 'Unable to load weather for this destination right now.');
+      setWeatherError('Unable to load weather for this destination right now.');
       setWeather(null);
     } finally {
       setWeatherLoading(false);
@@ -173,7 +179,7 @@ export default function AttractionDetailsScreen() {
           <Text style={styles.heroCopy}>{attraction.description || t('attraction_discover_copy')}</Text>
         </View>
 
-        <View style={styles.statsRow}>
+        <View style={[styles.statsRow, isCompact && styles.statsRowCompact]}>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>{t('attraction_resident_fee')}</Text>
             <Text style={styles.statValue}>{formatCurrency(residentFee)}</Text>
@@ -253,7 +259,9 @@ export default function AttractionDetailsScreen() {
               <Text style={styles.weatherErrorText}>{weatherError}</Text>
             ) : weather ? (
               <>
-                <View style={styles.weatherTopRow}>
+                {weatherNotice ? <Text style={styles.weatherNotice}>{weatherNotice}</Text> : null}
+
+                <View style={[styles.weatherTopRow, isCompact && styles.weatherTopRowCompact]}>
                   <View style={styles.weatherCopy}>
                     <Text style={styles.weatherTemperature}>{weather.temperature}°C</Text>
                     <Text style={styles.weatherDescription}>{weather.description}</Text>
@@ -262,7 +270,7 @@ export default function AttractionDetailsScreen() {
                   <Image source={{ uri: weather.icon }} style={styles.weatherIcon} />
                 </View>
 
-                <View style={styles.weatherStatsRow}>
+                <View style={[styles.weatherStatsRow, isCompact && styles.weatherStatsRowCompact]}>
                   <View style={styles.weatherStat}>
                     <Text style={styles.weatherStatLabel}>Humidity</Text>
                     <Text style={styles.weatherStatValue}>{weather.humidity ?? 'N/A'}%</Text>
@@ -353,6 +361,9 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     gap: 12,
+  },
+  statsRowCompact: {
+    flexDirection: 'column',
   },
   statCard: {
     flex: 1,
@@ -489,11 +500,23 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: '#A0463A',
   },
+  weatherNotice: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#0F6E56',
+    backgroundColor: '#E8F4F0',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
   weatherTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
+  },
+  weatherTopRowCompact: {
+    alignItems: 'flex-start',
   },
   weatherCopy: {
     flex: 1,
@@ -522,6 +545,9 @@ const styles = StyleSheet.create({
   weatherStatsRow: {
     flexDirection: 'row',
     gap: 10,
+  },
+  weatherStatsRowCompact: {
+    flexDirection: 'column',
   },
   weatherStat: {
     flex: 1,

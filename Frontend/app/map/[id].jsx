@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Linking,
   Platform,
   StyleSheet,
@@ -321,6 +322,10 @@ export default function AttractionMapScreen() {
   const [routeLoading, setRouteLoading] = useState(false);
   const [routeMode, setRouteMode] = useState('online');
   const [destinationLocationText, setDestinationLocationText] = useState('');
+  const [weather, setWeather] = useState(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState('');
+  const [weatherNotice, setWeatherNotice] = useState('');
 
   useEffect(() => {
     void loadMapData();
@@ -371,6 +376,35 @@ export default function AttractionMapScreen() {
 
     void loadDestinationLocationDetails();
   }, [destination]);
+
+  useEffect(() => {
+    const loadDestinationWeather = async () => {
+      if (!destination) {
+        setWeather(null);
+        setWeatherError('');
+        setWeatherNotice('');
+        return;
+      }
+
+      try {
+        setWeatherLoading(true);
+        setWeatherError('');
+        const { data } = await api.get(
+          `/weather/current?lat=${destination.latitude}&lon=${destination.longitude}&city=${encodeURIComponent(destinationName || 'Destination')}`
+        );
+        setWeather(data.weather || null);
+        setWeatherNotice(data.message || '');
+      } catch {
+        setWeather(null);
+        setWeatherError('Unable to load destination weather right now.');
+        setWeatherNotice('');
+      } finally {
+        setWeatherLoading(false);
+      }
+    };
+
+    void loadDestinationWeather();
+  }, [destination, destinationName]);
 
   const getInitialUserPosition = async () => {
     const servicesEnabled = await Location.hasServicesEnabledAsync();
@@ -903,6 +937,84 @@ export default function AttractionMapScreen() {
           </Text>
         </View>
 
+        <View style={styles.weatherCard}>
+          <View style={styles.weatherHeader}>
+            <View style={styles.weatherHeaderCopy}>
+              <Text style={styles.weatherLabel}>Current Weather</Text>
+              <Text style={styles.weatherLocationName}>{weather?.city || destinationName}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.weatherRefreshBtn}
+              onPress={async () => {
+                if (!destination) {
+                  return;
+                }
+
+                try {
+                  setWeatherLoading(true);
+                  setWeatherError('');
+                  const { data } = await api.get(
+                    `/weather/current?lat=${destination.latitude}&lon=${destination.longitude}&city=${encodeURIComponent(destinationName || 'Destination')}`
+                  );
+                  setWeather(data.weather || null);
+                  setWeatherNotice(data.message || '');
+                } catch {
+                  setWeather(null);
+                  setWeatherError('Unable to refresh destination weather right now.');
+                  setWeatherNotice('');
+                } finally {
+                  setWeatherLoading(false);
+                }
+              }}
+            >
+              <Ionicons name="refresh-outline" size={18} color="#264E86" />
+            </TouchableOpacity>
+          </View>
+
+          {weatherLoading ? (
+            <View style={styles.weatherLoadingRow}>
+              <ActivityIndicator size="small" color="#264E86" />
+              <Text style={styles.weatherLoadingText}>Loading current destination weather...</Text>
+            </View>
+          ) : weatherError ? (
+            <Text style={styles.weatherErrorText}>{weatherError}</Text>
+          ) : weather ? (
+            <>
+              {weatherNotice ? <Text style={styles.weatherNotice}>{weatherNotice}</Text> : null}
+
+              <View style={styles.weatherBody}>
+                <View style={styles.weatherPrimary}>
+                  <Text style={styles.weatherTemp}>{`${weather.temperature}\u00B0C`}</Text>
+                  <Text style={styles.weatherDescription}>{weather.description}</Text>
+                  <Text style={styles.weatherFeelsLike}>{`Feels like ${weather.feelsLike}\u00B0C`}</Text>
+                </View>
+                {weather.icon ? <Image source={{ uri: weather.icon }} style={styles.weatherIcon} /> : null}
+              </View>
+
+              <View style={styles.weatherStatsRow}>
+                <View style={styles.weatherStat}>
+                  <Text style={styles.weatherStatLabel}>Humidity</Text>
+                  <Text style={styles.weatherStatValue}>{weather.humidity ?? 'N/A'}%</Text>
+                </View>
+                <View style={styles.weatherStat}>
+                  <Text style={styles.weatherStatLabel}>Wind</Text>
+                  <Text style={styles.weatherStatValue}>
+                    {weather.windSpeed !== undefined && weather.windSpeed !== null ? `${weather.windSpeed} m/s` : 'N/A'}
+                  </Text>
+                </View>
+                <View style={styles.weatherStat}>
+                  <Text style={styles.weatherStatLabel}>Visibility</Text>
+                  <Text style={styles.weatherStatValue}>
+                    {weather.visibility ? `${(weather.visibility / 1000).toFixed(1)} km` : 'N/A'}
+                  </Text>
+                </View>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.weatherEmptyText}>No weather data available for this destination yet.</Text>
+          )}
+        </View>
+
         <Text style={styles.infoText}>
           {destination
             ? `${t('map_destination_label')}: ${destination.latitude.toFixed(5)}, ${destination.longitude.toFixed(5)}`
@@ -1103,6 +1215,128 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#264E86',
     fontWeight: '700',
+  },
+  weatherCard: {
+    backgroundColor: '#F7F1E8',
+    borderRadius: 18,
+    padding: 14,
+    gap: 10,
+  },
+  weatherHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  weatherHeaderCopy: {
+    flex: 1,
+  },
+  weatherLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#66707C',
+    textTransform: 'uppercase',
+  },
+  weatherLocationName: {
+    marginTop: 4,
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#1D2D45',
+  },
+  weatherRefreshBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D9E0EA',
+  },
+  weatherLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  weatherLoadingText: {
+    fontSize: 14,
+    color: '#66707C',
+    fontWeight: '700',
+  },
+  weatherErrorText: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#B24D34',
+  },
+  weatherNotice: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#0F6E56',
+    backgroundColor: '#E1F5EE',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  weatherBody: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  weatherPrimary: {
+    flex: 1,
+  },
+  weatherTemp: {
+    fontSize: 30,
+    fontWeight: '900',
+    color: '#173457',
+  },
+  weatherDescription: {
+    marginTop: 4,
+    fontSize: 15,
+    color: '#1D2D45',
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  weatherFeelsLike: {
+    marginTop: 6,
+    fontSize: 13,
+    color: '#66707C',
+  },
+  weatherIcon: {
+    width: 58,
+    height: 58,
+  },
+  weatherStatsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  weatherStat: {
+    flexGrow: 1,
+    minWidth: 92,
+    borderRadius: 14,
+    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D9E0EA',
+  },
+  weatherStatLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#66707C',
+    textTransform: 'uppercase',
+  },
+  weatherStatValue: {
+    marginTop: 6,
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#1D2D45',
+  },
+  weatherEmptyText: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#66707C',
   },
   directionsBtn: {
     marginTop: 8,
