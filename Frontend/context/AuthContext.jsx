@@ -60,25 +60,30 @@ export const AuthProvider = ({ children }) => {
     void initializeAuth();
   }, []);
 
+  const refreshBiometricState = async () => {
+    const LocalAuthentication = getLocalAuthenticationModule();
+    if (!LocalAuthentication) {
+      setBiometricModuleAvailable(false);
+      setBiometricAvailable(false);
+      setBiometricEnabled(false);
+      return;
+    }
+
+    setBiometricModuleAvailable(true);
+
+    const [hasHardware, isEnrolled, storedEmail] = await Promise.all([
+      LocalAuthentication.hasHardwareAsync(),
+      LocalAuthentication.isEnrolledAsync(),
+      SecureStore.getItemAsync(BIOMETRIC_EMAIL_KEY),
+    ]);
+
+    setBiometricAvailable(Boolean(hasHardware && isEnrolled));
+    setBiometricEnabled(Boolean(storedEmail));
+  };
+
   const initializeAuth = async () => {
     try {
-      const LocalAuthentication = getLocalAuthenticationModule();
-      if (!LocalAuthentication) {
-        setBiometricModuleAvailable(false);
-        setBiometricAvailable(false);
-        setBiometricEnabled(false);
-      } else {
-        setBiometricModuleAvailable(true);
-
-        const [hasHardware, isEnrolled, storedEmail] = await Promise.all([
-          LocalAuthentication.hasHardwareAsync(),
-          LocalAuthentication.isEnrolledAsync(),
-          SecureStore.getItemAsync(BIOMETRIC_EMAIL_KEY),
-        ]);
-
-        setBiometricAvailable(Boolean(hasHardware && isEnrolled));
-        setBiometricEnabled(Boolean(storedEmail));
-      }
+      await refreshBiometricState();
 
       const [savedEmail, savedPassword] = await Promise.all([
         SecureStore.getItemAsync(SAVED_LOGIN_EMAIL_KEY),
@@ -157,8 +162,7 @@ export const AuthProvider = ({ children }) => {
         keychainAccessible: SecureStore.WHEN_UNLOCKED,
       });
 
-      setBiometricAvailable(true);
-      setBiometricEnabled(true);
+      await refreshBiometricState();
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message || 'Could not enable biometric login.' };
@@ -180,7 +184,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await SecureStore.deleteItemAsync(BIOMETRIC_EMAIL_KEY);
       await SecureStore.deleteItemAsync(BIOMETRIC_PASSWORD_KEY);
-      setBiometricEnabled(false);
+      await refreshBiometricState();
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message || 'Could not disable biometric login.' };
@@ -259,7 +263,7 @@ export const AuthProvider = ({ children }) => {
       clearSessionToken();
       setLastLoginCredentials(null);
       dispatch({ type: 'LOGOUT' });
-      return { success: true, message: 'Account created successfully. Please log in.' };
+      return { success: true, message: 'Account created successfully.' };
     } catch (error) {
       return { success: false, error: error.response?.data?.message || error.message || 'Registration failed' };
     } finally {

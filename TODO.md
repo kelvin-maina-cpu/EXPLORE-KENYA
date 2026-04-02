@@ -1,8 +1,17 @@
-# EXPLORE-KENYA-PROJECT TODO ✅ COMPLETE
+# AeroDataBox Flight Integration TODO
 
-## Fixed
+## [x] 0. PLANNING: Analyzed files, user approved plan
 
-- [x] Auth inputs: Labels + placeholder colors (register/login)
-- [x] GPS Navigation under live camera start (broadcast screen → map)
+## [ ] 1. Add RAPIDAPI_KEY to Backend/.env
 
-**Test:** cd Frontend && npx expo start → Live camera → GPS button → Route guidance works.
+## [ ] 2. Replace Backend/routes/flightRoutes.js
+
+## [ ] 3. Replace Frontend/app/(tabs)/travel.jsx
+
+## [ ] 4. Restart backend server
+
+## [ ] 5. Test /api/flights/airports
+
+## [ ] 6. Test frontend travel tab
+
+## [ ] 7. Deploy to Render with env var
