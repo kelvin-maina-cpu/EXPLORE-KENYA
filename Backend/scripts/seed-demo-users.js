@@ -14,8 +14,8 @@ const users = [
   {
     role: 'admin',
     name: process.env.DEMO_ADMIN_NAME || 'Dashboard Admin',
-    email: (process.env.DEMO_ADMIN_EMAIL || 'admin@explorekenya.com').trim().toLowerCase(),
-    password: process.env.DEMO_ADMIN_PASSWORD || 'Admin123!',
+    email: (process.env.DEMO_ADMIN_EMAIL || 'kevsadmin@gmail.com').trim().toLowerCase(),
+    password: process.env.DEMO_ADMIN_PASSWORD || 'password123',
     phoneNumber: process.env.DEMO_ADMIN_PHONE || '0700000001',
   },
   {

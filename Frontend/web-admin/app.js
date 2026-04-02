@@ -333,11 +333,18 @@ $('login-form').addEventListener('submit', async (event) => {
         password: $('password').value,
       }),
     });
-    if (response.role !== 'admin') {
+    const signedInUser = response.user || response;
+
+    if (signedInUser.role !== 'admin') {
       throw new Error('This dashboard only allows admin accounts.');
     }
     state.token = response.token;
-    state.user = { _id: response._id, name: response.name, email: response.email, role: response.role };
+    state.user = {
+      _id: signedInUser._id,
+      name: signedInUser.name,
+      email: signedInUser.email,
+      role: signedInUser.role,
+    };
     saveSession();
     await loadAll();
     showDashboard();
@@ -423,8 +430,10 @@ $('tour-form').addEventListener('submit', async (event) => {
 });
 
 $('tour-list').addEventListener('click', async (event) => {
-  const editId = event.target.dataset.tourEdit;
-  const deleteId = event.target.dataset.tourDelete;
+  const editButton = event.target.closest('[data-tour-edit]');
+  const deleteButton = event.target.closest('[data-tour-delete]');
+  const editId = editButton?.dataset.tourEdit;
+  const deleteId = deleteButton?.dataset.tourDelete;
   if (editId) {
     const tour = state.tours.find((item) => item._id === editId);
     if (tour) {
@@ -480,8 +489,10 @@ $('attraction-form').addEventListener('submit', async (event) => {
 });
 
 $('attraction-list').addEventListener('click', async (event) => {
-  const editId = event.target.dataset.attractionEdit;
-  const deleteId = event.target.dataset.attractionDelete;
+  const editButton = event.target.closest('[data-attraction-edit]');
+  const deleteButton = event.target.closest('[data-attraction-delete]');
+  const editId = editButton?.dataset.attractionEdit;
+  const deleteId = deleteButton?.dataset.attractionDelete;
   if (editId) {
     const attraction = state.attractions.find((item) => item._id === editId);
     if (attraction) {

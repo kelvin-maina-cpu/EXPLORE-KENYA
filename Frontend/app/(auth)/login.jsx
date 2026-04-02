@@ -7,11 +7,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useLocale } from '../../context/LocalizationContext';
 import { useTheme } from '../../context/ThemeContext';
 
-const ADMIN_CREDENTIALS = {
-  email: 'admin@explorekenya.com',
-  password: 'Admin123!',
-};
-
 export default function Login() {
   const [loginMode, setLoginMode] = useState('user');
   const [email, setEmail] = useState('');
@@ -39,8 +34,8 @@ export default function Login() {
 
   useEffect(() => {
     if (loginMode === 'admin') {
-      setEmail(ADMIN_CREDENTIALS.email);
-      setPassword(ADMIN_CREDENTIALS.password);
+      setEmail('');
+      setPassword('');
       return;
     }
 
@@ -127,10 +122,7 @@ export default function Login() {
             >
               <Text style={[styles.adminHintTitle, { color: colors.successText }]}>Admin Access</Text>
               <Text style={[styles.adminHintCopy, { color: colors.text }]}>
-                Email: {ADMIN_CREDENTIALS.email}
-              </Text>
-              <Text style={[styles.adminHintCopy, { color: colors.text }]}>
-                Password: {ADMIN_CREDENTIALS.password}
+                Sign in with your authorized admin account to open the management panel.
               </Text>
             </View>
           ) : null}

@@ -13,8 +13,8 @@ const User = require('../models/User');
 const normalizeEmail = (value) => `${value || ''}`.trim().toLowerCase();
 
 const ADMIN_NAME = `${process.env.ADMIN_SEED_NAME || 'Explore Kenya Admin'}`.trim();
-const ADMIN_EMAIL = normalizeEmail(process.env.ADMIN_SEED_EMAIL || 'admin@explorekenya.com');
-const ADMIN_PASSWORD = `${process.env.ADMIN_SEED_PASSWORD || 'Admin123!'}`;
+const ADMIN_EMAIL = normalizeEmail(process.env.ADMIN_SEED_EMAIL || 'kevsadmin@gmail.com');
+const ADMIN_PASSWORD = `${process.env.ADMIN_SEED_PASSWORD || 'password123'}`;
 const ADMIN_PHONE = `${process.env.ADMIN_SEED_PHONE || ''}`.trim();
 
 const seedAdmin = async () => {

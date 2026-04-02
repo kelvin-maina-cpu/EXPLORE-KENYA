@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -14,8 +14,9 @@ const AUTH_USER_KEY = 'authUser';
 
 export default function AdminDashboardScreen() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const { theme } = useTheme();
+  const webViewRef = useRef(null);
   const [bootstrapReady, setBootstrapReady] = useState(false);
   const [sessionToken, setSessionToken] = useState('');
   const [sessionUser, setSessionUser] = useState(null);
@@ -65,12 +66,29 @@ export default function AdminDashboardScreen() {
     return <Redirect href="/(tabs)/profile" />;
   }
 
+  const handleBackToLogin = async () => {
+    try {
+      webViewRef.current?.injectJavaScript(`
+        try {
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+        } catch (error) {}
+        true;
+      `);
+    } catch {}
+
+    await logout();
+    router.replace('/(auth)/login');
+  };
+
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: theme.colors.screen }]}>
       <View style={[styles.header, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <TouchableOpacity
           style={[styles.backButton, { backgroundColor: theme.colors.cardSoft, borderColor: theme.colors.borderSoft }]}
-          onPress={() => router.back()}
+          onPress={() => {
+            void handleBackToLogin();
+          }}
         >
           <MaterialCommunityIcons name="arrow-left" size={20} color={theme.colors.text} />
         </TouchableOpacity>
@@ -94,6 +112,7 @@ export default function AdminDashboardScreen() {
 
       <View style={[styles.webviewWrap, { borderColor: theme.colors.border }]}>
         <WebView
+          ref={webViewRef}
           source={{ uri: dashboardUrl }}
           originWhitelist={['*']}
           injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded}
