@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -14,14 +14,90 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../../services/api';
 
-const KENYA_AIRPORTS = [
-  { label: 'Nairobi (NBO)', icao: 'HKJK', iata: 'NBO' },
-  { label: 'Mombasa (MBA)', icao: 'HKMO', iata: 'MBA' },
-  { label: 'Kisumu (KIS)', icao: 'HKKI', iata: 'KIS' },
-  { label: 'Eldoret (EDL)', icao: 'HKEL', iata: 'EDL' },
+const WEATHER_CITIES = ['Nairobi', 'Mombasa', 'Maasai Mara', 'Amboseli', 'Diani Beach', 'Nakuru', 'Lamu'];
+
+const FALLBACK_AIRPORTS = [
+  { name: 'Nairobi Jomo Kenyatta', iata: 'NBO', icao: 'HKJK' },
+  { name: 'Mombasa Moi', iata: 'MBA', icao: 'HKMO' },
+  { name: 'Kisumu', iata: 'KIS', icao: 'HKKI' },
+  { name: 'Eldoret', iata: 'EDL', icao: 'HKEL' },
+  { name: 'Wilson Airport', iata: 'WIL', icao: 'HKNW' },
 ];
 
-const WEATHER_CITIES = ['Nairobi', 'Mombasa', 'Maasai Mara', 'Amboseli', 'Diani Beach', 'Nakuru', 'Lamu'];
+const DESTINATION_ROUTES = [
+  {
+    key: 'dubai',
+    city: 'Dubai',
+    country: 'United Arab Emirates',
+    airport: 'Dubai International',
+    iata: 'DXB',
+    region: 'Middle East',
+    fares: { NBO: 54000, MBA: 61000, KIS: 73000, EDL: 76000, WIL: 58000 },
+  },
+  {
+    key: 'london',
+    city: 'London',
+    country: 'United Kingdom',
+    airport: 'Heathrow',
+    iata: 'LHR',
+    region: 'Europe',
+    fares: { NBO: 118000, MBA: 132000, KIS: 145000, EDL: 149000, WIL: 126000 },
+  },
+  {
+    key: 'doha',
+    city: 'Doha',
+    country: 'Qatar',
+    airport: 'Hamad International',
+    iata: 'DOH',
+    region: 'Middle East',
+    fares: { NBO: 52000, MBA: 59000, KIS: 71000, EDL: 74000, WIL: 56000 },
+  },
+  {
+    key: 'johannesburg',
+    city: 'Johannesburg',
+    country: 'South Africa',
+    airport: 'O. R. Tambo',
+    iata: 'JNB',
+    region: 'Africa',
+    fares: { NBO: 46000, MBA: 52000, KIS: 64000, EDL: 67000, WIL: 50000 },
+  },
+  {
+    key: 'lagos',
+    city: 'Lagos',
+    country: 'Nigeria',
+    airport: 'Murtala Muhammed',
+    iata: 'LOS',
+    region: 'Africa',
+    fares: { NBO: 49000, MBA: 56000, KIS: 68000, EDL: 71000, WIL: 53000 },
+  },
+  {
+    key: 'mumbai',
+    city: 'Mumbai',
+    country: 'India',
+    airport: 'Chhatrapati Shivaji',
+    iata: 'BOM',
+    region: 'Asia',
+    fares: { NBO: 58000, MBA: 64000, KIS: 76000, EDL: 79000, WIL: 62000 },
+  },
+  {
+    key: 'newyork',
+    city: 'New York',
+    country: 'United States',
+    airport: 'John F. Kennedy',
+    iata: 'JFK',
+    region: 'North America',
+    fares: { NBO: 146000, MBA: 161000, KIS: 174000, EDL: 178000, WIL: 153000 },
+  },
+  {
+    key: 'guangzhou',
+    city: 'Guangzhou',
+    country: 'China',
+    airport: 'Baiyun',
+    iata: 'CAN',
+    region: 'Asia',
+    fares: { NBO: 98000, MBA: 109000, KIS: 122000, EDL: 126000, WIL: 104000 },
+  },
+];
 
 const STATUS_COLORS = {
   Scheduled: '#C8A020',
@@ -32,6 +108,13 @@ const STATUS_COLORS = {
   Unknown: '#555',
 };
 
+const currency = (amount) =>
+  new Intl.NumberFormat('en-KE', {
+    style: 'currency',
+    currency: 'KES',
+    maximumFractionDigits: 0,
+  }).format(Number(amount || 0));
+
 export default function TravelPlannerScreen() {
   const { width } = useWindowDimensions();
   const isCompact = width < 390;
@@ -41,7 +124,9 @@ export default function TravelPlannerScreen() {
   const [forecastData, setForecastData] = useState([]);
   const [selectedCity, setSelectedCity] = useState('Nairobi');
   const [flights, setFlights] = useState([]);
-  const [selectedAirport, setSelectedAirport] = useState(KENYA_AIRPORTS[0]);
+  const [airports, setAirports] = useState([]);
+  const [selectedAirport, setSelectedAirport] = useState(null);
+  const [selectedDestinationKey, setSelectedDestinationKey] = useState(DESTINATION_ROUTES[0].key);
   const [flightSearch, setFlightSearch] = useState('');
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [loadingFlights, setLoadingFlights] = useState(false);
@@ -51,6 +136,7 @@ export default function TravelPlannerScreen() {
   const [flightNotice, setFlightNotice] = useState('');
 
   useEffect(() => {
+    void fetchAirports();
     void fetchKenyaWeather();
   }, []);
 
@@ -61,10 +147,47 @@ export default function TravelPlannerScreen() {
   }, [activeTab, selectedCity]);
 
   useEffect(() => {
-    if (activeTab === 'flights') {
+    if (activeTab === 'flights' && selectedAirport) {
       void fetchFlights();
     }
   }, [activeTab, flightMode, selectedAirport]);
+
+  const selectedDestination = useMemo(
+    () => DESTINATION_ROUTES.find((route) => route.key === selectedDestinationKey) || DESTINATION_ROUTES[0],
+    [selectedDestinationKey]
+  );
+
+  const destinationFlights = useMemo(() => {
+    const normalize = (value) => `${value || ''}`.toLowerCase();
+
+    return flights.filter((flight) => {
+      if (flightMode === 'departures') {
+        return (
+          normalize(flight.destinationIata) === normalize(selectedDestination.iata) ||
+          normalize(flight.destination).includes(normalize(selectedDestination.city)) ||
+          normalize(flight.destination).includes(normalize(selectedDestination.airport))
+        );
+      }
+
+      return (
+        normalize(flight.originIata) === normalize(selectedDestination.iata) ||
+        normalize(flight.origin).includes(normalize(selectedDestination.city)) ||
+        normalize(flight.origin).includes(normalize(selectedDestination.airport))
+      );
+    });
+  }, [flightMode, flights, selectedDestination]);
+
+  const nextScheduledFlight = useMemo(() => {
+    const upcoming = destinationFlights
+      .map((flight) => ({
+        flight,
+        timestamp: flight.scheduledTime ? new Date(flight.scheduledTime).getTime() : Number.NaN,
+      }))
+      .filter((entry) => Number.isFinite(entry.timestamp))
+      .sort((left, right) => left.timestamp - right.timestamp);
+
+    return upcoming[0]?.flight || null;
+  }, [destinationFlights]);
 
   const fetchKenyaWeather = async () => {
     try {
@@ -76,6 +199,18 @@ export default function TravelPlannerScreen() {
       setError('Failed to load weather. Check your connection.');
     } finally {
       setLoadingWeather(false);
+    }
+  };
+
+  const fetchAirports = async () => {
+    try {
+      const { data } = await api.get('/flights/airports');
+      const nextAirports = data.airports || [];
+      setAirports(nextAirports);
+      setSelectedAirport((current) => current || nextAirports[0] || FALLBACK_AIRPORTS[0]);
+    } catch {
+      setAirports(FALLBACK_AIRPORTS);
+      setSelectedAirport((current) => current || FALLBACK_AIRPORTS[0]);
     }
   };
 
@@ -92,6 +227,10 @@ export default function TravelPlannerScreen() {
   };
 
   const fetchFlights = async () => {
+    if (!selectedAirport) {
+      return;
+    }
+
     try {
       setLoadingFlights(true);
       setError(null);
@@ -173,6 +312,7 @@ export default function TravelPlannerScreen() {
   };
 
   const selectedWeather = weatherData.find((destination) => destination.name?.toLowerCase() === selectedCity.toLowerCase());
+  const estimatedFare = selectedDestination.fares[selectedAirport?.iata] || selectedDestination.fares.NBO;
 
   const renderWeatherTab = () => (
     <ScrollView
@@ -293,20 +433,72 @@ export default function TravelPlannerScreen() {
         </View>
       </View>
 
-      <Text style={styles.searchLabel}>Kenya Airports</Text>
+      <Text style={styles.searchLabel}>Choose a Kenya airport</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-        {KENYA_AIRPORTS.map((airport) => (
+        {airports.map((airport) => (
           <TouchableOpacity
             key={airport.icao}
-            style={[styles.chip, selectedAirport.icao === airport.icao && styles.chipActive]}
+            style={[styles.chip, selectedAirport?.icao === airport.icao && styles.chipActive]}
             onPress={() => setSelectedAirport(airport)}
           >
-            <Text style={[styles.chipText, selectedAirport.icao === airport.icao && styles.chipTextActive]}>
-              {airport.label}
+            <Text style={[styles.chipText, selectedAirport?.icao === airport.icao && styles.chipTextActive]}>
+              {`${airport.name} (${airport.iata})`}
             </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      <Text style={styles.searchLabel}>Choose a world destination</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+        {DESTINATION_ROUTES.map((route) => (
+          <TouchableOpacity
+            key={route.key}
+            style={[styles.destinationChip, selectedDestinationKey === route.key && styles.destinationChipActive]}
+            onPress={() => setSelectedDestinationKey(route.key)}
+          >
+            <Text style={[styles.destinationChipTitle, selectedDestinationKey === route.key && styles.destinationChipTitleActive]}>
+              {route.city}
+            </Text>
+            <Text style={[styles.destinationChipMeta, selectedDestinationKey === route.key && styles.destinationChipMetaActive]}>
+              {route.iata}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <View style={styles.routeSummaryCard}>
+        <View style={[styles.routeSummaryHeader, isCompact && styles.routeSummaryHeaderCompact]}>
+          <View style={styles.flexOne}>
+            <Text style={styles.routeSummaryTitle}>{`${selectedAirport?.iata || 'KEN'} to ${selectedDestination.iata}`}</Text>
+            <Text style={styles.routeSummarySub}>
+              {`${selectedDestination.city}, ${selectedDestination.country} via ${selectedDestination.airport}`}
+            </Text>
+          </View>
+          <View style={styles.fareBadge}>
+            <Text style={styles.fareBadgeLabel}>Estimated fare</Text>
+            <Text style={styles.fareBadgeValue}>{currency(estimatedFare)}</Text>
+          </View>
+        </View>
+
+        <View style={[styles.routeStatsRow, isCompact && styles.routeStatsRowCompact]}>
+          <View style={styles.routeStatBox}>
+            <Text style={styles.routeStatLabel}>Region</Text>
+            <Text style={styles.routeStatValue}>{selectedDestination.region}</Text>
+          </View>
+          <View style={styles.routeStatBox}>
+            <Text style={styles.routeStatLabel}>Matching flights</Text>
+            <Text style={styles.routeStatValue}>{destinationFlights.length}</Text>
+          </View>
+          <View style={styles.routeStatBox}>
+            <Text style={styles.routeStatLabel}>Next schedule</Text>
+            <Text style={styles.routeStatValue}>{nextScheduledFlight ? formatTime(nextScheduledFlight.scheduledTime) : 'No live match'}</Text>
+          </View>
+        </View>
+
+        <Text style={styles.routeHint}>
+          Fares are estimates for planning. Live schedules below come from the selected Kenya airport.
+        </Text>
+      </View>
 
       <View style={styles.modeToggle}>
         {['departures', 'arrivals'].map((mode) => (
@@ -324,10 +516,14 @@ export default function TravelPlannerScreen() {
 
       {loadingFlights ? (
         <ActivityIndicator size="large" color="#0F6E56" style={styles.loaderSpacing} />
-      ) : flights.length > 0 ? (
+      ) : (destinationFlights.length > 0 || flights.length > 0) ? (
         <>
-          <Text style={styles.flightCount}>{flights.length} flights found</Text>
-          {flights.map((flight, index) => {
+          <Text style={styles.flightCount}>
+            {destinationFlights.length > 0
+              ? `${destinationFlights.length} flights found for ${selectedDestination.city}`
+              : `No direct live matches for ${selectedDestination.city}. Showing the latest flights from ${selectedAirport?.iata || 'the selected airport'}.`}
+          </Text>
+          {(destinationFlights.length > 0 ? destinationFlights : flights.slice(0, 8)).map((flight, index) => {
             const statusColor = STATUS_COLORS[flight.status] || '#555';
 
             return (
@@ -344,17 +540,15 @@ export default function TravelPlannerScreen() {
 
                 <View style={[styles.flightRoute, isCompact && styles.flightRouteCompact]}>
                   <View style={[styles.flightEndpoint, isCompact && styles.flightEndpointCompact]}>
-                    <Text style={styles.flightIata}>{selectedAirport.iata}</Text>
-                    <Text style={styles.flightTime}>
-                      {formatTime(flightMode === 'departures' ? flight.scheduledTime : flight.departure?.scheduledTime)}
-                    </Text>
+                    <Text style={styles.flightIata}>{selectedAirport?.iata || 'N/A'}</Text>
+                    <Text style={styles.flightTime}>{formatTime(flight.scheduledTime)}</Text>
                     <Text style={styles.flightAirportName} numberOfLines={1}>
-                      {selectedAirport.label}
+                      {selectedAirport?.name || 'Kenya airport'}
                     </Text>
                   </View>
 
                   <View style={[styles.flightMiddle, isCompact && styles.flightMiddleCompact]}>
-                    <Text style={styles.flightArrow}>{flightMode === 'departures' ? '✈' : '🛬'}</Text>
+                    <Text style={styles.flightArrow}>{flightMode === 'departures' ? 'TO' : 'FROM'}</Text>
                     <View style={styles.flightLine} />
                   </View>
 
@@ -362,9 +556,7 @@ export default function TravelPlannerScreen() {
                     <Text style={styles.flightIata}>
                       {flightMode === 'departures' ? flight.destinationIata || 'N/A' : flight.originIata || 'N/A'}
                     </Text>
-                    <Text style={styles.flightTime}>
-                      {formatTime(flightMode === 'departures' ? flight.arrival?.scheduledTime : flight.scheduledTime)}
-                    </Text>
+                    <Text style={styles.flightTime}>{formatTime(flight.scheduledTime)}</Text>
                     <Text style={styles.flightAirportName} numberOfLines={2}>
                       {flightMode === 'departures' ? flight.destination || 'N/A' : flight.origin || 'N/A'}
                     </Text>
@@ -384,10 +576,9 @@ export default function TravelPlannerScreen() {
         </>
       ) : (
         <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>✈️</Text>
           <Text style={styles.emptyTitle}>No flights found</Text>
           <Text style={styles.emptyDesc}>
-            {flightNotice || 'Try searching by flight number or check another airport.'}
+            {flightNotice || 'Try another Kenya airport, change destination, or search by flight number.'}
           </Text>
         </View>
       )}
@@ -399,9 +590,9 @@ export default function TravelPlannerScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Travel Planner</Text>
-          <Text style={styles.headerSub}>Flights & Weather for Kenya</Text>
+          <Text style={styles.headerSub}>Flights and weather for Kenya</Text>
         </View>
-        <Text style={styles.headerEmoji}>🌍</Text>
+        <Text style={styles.headerEmoji}>Air</Text>
       </View>
 
       <View style={styles.tabBar}>
@@ -448,7 +639,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 22, fontWeight: '700', color: '#fff' },
   headerSub: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-  headerEmoji: { fontSize: 32 },
+  headerEmoji: { fontSize: 18, fontWeight: '800', color: '#D9F2EB' },
   tabBar: { flexDirection: 'row', backgroundColor: '#1a1a1a', borderBottomWidth: 1, borderBottomColor: '#333' },
   tab: { flex: 1, paddingVertical: 14, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   tabActive: { borderBottomColor: '#0F6E56' },
@@ -555,6 +746,115 @@ const styles = StyleSheet.create({
   searchBtn: { backgroundColor: '#0F6E56', borderRadius: 10, paddingHorizontal: 20, justifyContent: 'center' },
   searchBtnCompact: { minHeight: 48, alignItems: 'center' },
   searchBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  destinationChip: {
+    backgroundColor: '#1E2430',
+    borderColor: '#313A4E',
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginRight: 10,
+    minWidth: 104,
+  },
+  destinationChipActive: {
+    backgroundColor: '#173457',
+    borderColor: '#0FA37F',
+  },
+  destinationChipTitle: {
+    color: '#F3F1EA',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  destinationChipTitleActive: {
+    color: '#FFFFFF',
+  },
+  destinationChipMeta: {
+    marginTop: 4,
+    color: '#8FA0BF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  destinationChipMetaActive: {
+    color: '#A9E2D4',
+  },
+  routeSummaryCard: {
+    backgroundColor: '#101C19',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#1F4D43',
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  routeSummaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  routeSummaryHeaderCompact: {
+    flexDirection: 'column',
+  },
+  routeSummaryTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  routeSummarySub: {
+    marginTop: 4,
+    color: '#A9E2D4',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  fareBadge: {
+    backgroundColor: '#173457',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minWidth: 130,
+  },
+  fareBadgeLabel: {
+    color: '#B7C7E4',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  fareBadgeValue: {
+    marginTop: 6,
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  routeStatsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  routeStatsRowCompact: {
+    flexDirection: 'column',
+  },
+  routeStatBox: {
+    flex: 1,
+    backgroundColor: '#152723',
+    borderRadius: 14,
+    padding: 12,
+  },
+  routeStatLabel: {
+    color: '#91B3AA',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  routeStatValue: {
+    marginTop: 6,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  routeHint: {
+    color: '#8DB7AE',
+    fontSize: 12,
+    lineHeight: 18,
+  },
   modeToggle: {
     flexDirection: 'row',
     backgroundColor: '#1a1a1a',
@@ -593,7 +893,7 @@ const styles = StyleSheet.create({
   flightAirportName: { fontSize: 11, color: '#888', marginTop: 2 },
   flightMiddle: { alignItems: 'center', paddingHorizontal: 8 },
   flightMiddleCompact: { paddingHorizontal: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  flightArrow: { fontSize: 20, color: '#0F6E56', marginBottom: 4 },
+  flightArrow: { fontSize: 12, color: '#0F6E56', marginBottom: 4, fontWeight: '800' },
   flightLine: { width: 40, height: 1, backgroundColor: '#444' },
   flightFooter: {
     flexDirection: 'row',
@@ -612,7 +912,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   empty: { alignItems: 'center', paddingVertical: 60, gap: 10 },
-  emptyEmoji: { fontSize: 52 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#F3F1EA' },
   emptyDesc: { fontSize: 13, color: '#888', textAlign: 'center', lineHeight: 20 },
   errorBox: {
