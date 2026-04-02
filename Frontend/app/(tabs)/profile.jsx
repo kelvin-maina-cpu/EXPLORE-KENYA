@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-  import { useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import {
   Alert,
+  Linking,
   ScrollView,
   StyleSheet,
   Switch,
@@ -15,6 +16,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { AVAILABLE_LANGUAGES, useLocale } from '../../context/LocalizationContext';
 import { useTheme } from '../../context/ThemeContext';
+import { API_ORIGIN } from '../../services/api';
 
 const availableInterests = ['wildlife', 'culture', 'adventure', 'history'];
 
@@ -26,6 +28,7 @@ export default function ProfileScreen() {
     loading,
     biometricAvailable,
     biometricEnabled,
+    biometricSetupReady,
     biometricSupportMessage,
     enableBiometricLoginFromSession,
     disableBiometricLogin,
@@ -67,6 +70,22 @@ const { theme, isDarkMode, toggleTheme } = useTheme();
         ? current.interests.filter((item) => item !== interest)
         : [...current.interests, interest],
     }));
+  };
+
+  const handleOpenAdminDashboard = async () => {
+    const dashboardUrl = `${API_ORIGIN}/admin-dashboard`;
+
+    try {
+      const supported = await Linking.canOpenURL(dashboardUrl);
+      if (!supported) {
+        Alert.alert('Admin Dashboard', `Open this link in your browser: ${dashboardUrl}`);
+        return;
+      }
+
+      await Linking.openURL(dashboardUrl);
+    } catch {
+      Alert.alert('Admin Dashboard', `Open this link in your browser: ${dashboardUrl}`);
+    }
   };
 
   const handleSave = async () => {
@@ -151,6 +170,31 @@ const { theme, isDarkMode, toggleTheme } = useTheme();
             {t('role')}: {user?.role || t('guest')}
           </Text>
         </View>
+
+        {user?.role === 'admin' ? (
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.adminHeader}>
+              <View style={[styles.adminIconWrap, { backgroundColor: colors.secondary }]}>
+                <MaterialCommunityIcons name="shield-crown-outline" size={22} color={colors.secondaryText} />
+              </View>
+              <View style={styles.adminHeaderCopy}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Admin Dashboard</Text>
+                <Text style={[styles.biometricCopy, { color: colors.textMuted }]}>
+                  Manage tours, attractions, bookings, and media uploads from the browser dashboard.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.adminButton, { backgroundColor: colors.secondary }]}
+              onPress={() => {
+                void handleOpenAdminDashboard();
+              }}
+            >
+              <MaterialCommunityIcons name="open-in-new" size={18} color={colors.secondaryText} />
+              <Text style={[styles.adminButtonText, { color: colors.secondaryText }]}>Open Admin Dashboard</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('language')}</Text>
@@ -257,7 +301,7 @@ const { theme, isDarkMode, toggleTheme } = useTheme();
               onValueChange={(value) => {
                 void handleBiometricToggle(value);
               }}
-              disabled={!biometricAvailable || loading}
+              disabled={!biometricAvailable || loading || (!biometricEnabled && !biometricSetupReady)}
               trackColor={{ true: colors.primary }}
             />
           </View>
@@ -274,7 +318,7 @@ const { theme, isDarkMode, toggleTheme } = useTheme();
               onPress={() => {
                 void handleBiometricToggle(!biometricEnabled);
               }}
-              disabled={loading}
+              disabled={loading || (!biometricEnabled && !biometricSetupReady)}
             >
               <MaterialCommunityIcons
                 name={biometricEnabled ? 'fingerprint-off' : 'fingerprint'}
@@ -288,7 +332,9 @@ const { theme, isDarkMode, toggleTheme } = useTheme();
           ) : null}
           {!biometricEnabled && biometricAvailable ? (
             <Text style={[styles.biometricHint, { color: colors.textMuted }]}>
-              {t('biometric_retry_hint')}
+              {biometricSetupReady
+                ? t('biometric_retry_hint')
+                : 'Sign in once with your email and password, then return here to enable fingerprint login.'}
             </Text>
           ) : null}
         </View>
@@ -422,6 +468,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
   },
+  adminHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  adminIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   biometricRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -457,6 +515,20 @@ const styles = StyleSheet.create({
   },
   biometricActionText: {
     color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  adminButton: {
+    marginTop: 8,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  adminButtonText: {
     fontSize: 14,
     fontWeight: '800',
   },

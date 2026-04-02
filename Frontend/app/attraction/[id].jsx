@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { getAttraction } from '../../services/api';
+import api, { getAttraction } from '../../services/api';
 import { useLocale } from '../../context/LocalizationContext';
 
 const CATEGORY_ICONS = {
@@ -32,6 +33,10 @@ export default function AttractionDetailsScreen() {
   const [attraction, setAttraction] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [weatherVisible, setWeatherVisible] = useState(false);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState('');
+  const [weather, setWeather] = useState(null);
 
   useEffect(() => {
     const loadAttraction = async () => {
@@ -64,6 +69,33 @@ export default function AttractionDetailsScreen() {
   const nonResidentFee = useMemo(() => attraction?.entryFee?.nonResident ?? 0, [attraction]);
   const category = attraction?.category || 'wildlife';
   const categoryIcon = CATEGORY_ICONS[category.toLowerCase()] || 'leaf-outline';
+
+  const loadDestinationWeather = async () => {
+    try {
+      setWeatherLoading(true);
+      setWeatherError('');
+
+      const query = latitude !== null && longitude !== null
+        ? `/weather/current?lat=${latitude}&lon=${longitude}`
+        : `/weather/current?city=${encodeURIComponent(attraction?.county || attraction?.name || 'Nairobi')}`;
+
+      const { data } = await api.get(query);
+      setWeather(data.weather || null);
+    } catch (loadError) {
+      setWeatherError(loadError.response?.data?.message || 'Unable to load weather for this destination right now.');
+      setWeather(null);
+    } finally {
+      setWeatherLoading(false);
+    }
+  };
+
+  const toggleWeather = async () => {
+    if (!weatherVisible && !weather && !weatherLoading) {
+      await loadDestinationWeather();
+    }
+
+    setWeatherVisible((current) => !current);
+  };
 
   const openBooking = () => {
     router.push({
@@ -186,7 +218,72 @@ export default function AttractionDetailsScreen() {
               </Text>
             </View>
           </TouchableOpacity>
+
+          <TouchableOpacity style={styles.secondaryAction} onPress={() => { void toggleWeather(); }}>
+            <Ionicons name="partly-sunny-outline" size={20} color="#173457" />
+            <View style={styles.actionCopy}>
+              <Text style={styles.secondaryActionTitle}>Destination Weather</Text>
+              <Text style={styles.secondaryActionText}>
+                {weatherVisible
+                  ? 'Hide the latest weather snapshot for this destination.'
+                  : 'Show the current weather before you book or navigate.'}
+              </Text>
+            </View>
+          </TouchableOpacity>
         </View>
+
+        {weatherVisible ? (
+          <View style={styles.weatherCard}>
+            <View style={styles.weatherHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Current Weather</Text>
+                <Text style={styles.weatherLocation}>{weather?.city || attraction.county || attraction.name}</Text>
+              </View>
+              <TouchableOpacity style={styles.weatherRefresh} onPress={() => { void loadDestinationWeather(); }}>
+                <Ionicons name="refresh-outline" size={18} color="#0F6E56" />
+              </TouchableOpacity>
+            </View>
+
+            {weatherLoading ? (
+              <View style={styles.weatherLoadingRow}>
+                <ActivityIndicator size="small" color="#0F6E56" />
+                <Text style={styles.weatherLoadingText}>Loading latest destination weather...</Text>
+              </View>
+            ) : weatherError ? (
+              <Text style={styles.weatherErrorText}>{weatherError}</Text>
+            ) : weather ? (
+              <>
+                <View style={styles.weatherTopRow}>
+                  <View style={styles.weatherCopy}>
+                    <Text style={styles.weatherTemperature}>{weather.temperature}°C</Text>
+                    <Text style={styles.weatherDescription}>{weather.description}</Text>
+                    <Text style={styles.weatherFeelsLike}>Feels like {weather.feelsLike}°C</Text>
+                  </View>
+                  <Image source={{ uri: weather.icon }} style={styles.weatherIcon} />
+                </View>
+
+                <View style={styles.weatherStatsRow}>
+                  <View style={styles.weatherStat}>
+                    <Text style={styles.weatherStatLabel}>Humidity</Text>
+                    <Text style={styles.weatherStatValue}>{weather.humidity ?? 'N/A'}%</Text>
+                  </View>
+                  <View style={styles.weatherStat}>
+                    <Text style={styles.weatherStatLabel}>Wind</Text>
+                    <Text style={styles.weatherStatValue}>{weather.windSpeed ?? 'N/A'} m/s</Text>
+                  </View>
+                  <View style={styles.weatherStat}>
+                    <Text style={styles.weatherStatLabel}>Visibility</Text>
+                    <Text style={styles.weatherStatValue}>
+                      {weather.visibility ? `${(weather.visibility / 1000).toFixed(1)} km` : 'N/A'}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <Text style={styles.weatherEmptyText}>No weather data available yet.</Text>
+            )}
+          </View>
+        ) : null}
 
         <View style={styles.detailsCard}>
           <Text style={styles.sectionTitle}>{t('attraction_location')}</Text>
@@ -347,6 +444,105 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 15,
     lineHeight: 23,
+    color: '#66707C',
+  },
+  weatherCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#D9E0EA',
+    padding: 18,
+    gap: 14,
+  },
+  weatherHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  weatherLocation: {
+    marginTop: 4,
+    fontSize: 13,
+    color: '#66707C',
+    fontWeight: '700',
+  },
+  weatherRefresh: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E8F4F0',
+  },
+  weatherLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  weatherLoadingText: {
+    fontSize: 14,
+    color: '#66707C',
+    fontWeight: '700',
+  },
+  weatherErrorText: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#A0463A',
+  },
+  weatherTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  weatherCopy: {
+    flex: 1,
+  },
+  weatherTemperature: {
+    fontSize: 34,
+    fontWeight: '900',
+    color: '#173457',
+  },
+  weatherDescription: {
+    marginTop: 4,
+    fontSize: 15,
+    color: '#1D2D45',
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  weatherFeelsLike: {
+    marginTop: 6,
+    fontSize: 13,
+    color: '#66707C',
+  },
+  weatherIcon: {
+    width: 64,
+    height: 64,
+  },
+  weatherStatsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  weatherStat: {
+    flex: 1,
+    backgroundColor: '#FFF7EC',
+    borderRadius: 16,
+    padding: 12,
+  },
+  weatherStatLabel: {
+    fontSize: 11,
+    color: '#8A745B',
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  weatherStatValue: {
+    marginTop: 6,
+    fontSize: 15,
+    color: '#173457',
+    fontWeight: '900',
+  },
+  weatherEmptyText: {
+    fontSize: 14,
     color: '#66707C',
   },
   loadingScreen: {

@@ -19,9 +19,12 @@ const chatbotRoutes = require('./routes/chatbotRoutes');
 const liveStreamRoutes = require('./routes/liveStreamRoutes');
 const flightRoutes = require('./routes/flightRoutes');
 const weatherRoutes = require('./routes/weatherRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
 const errorHandler = require('./middleware/errorMiddleware');
 
 const app = express();
+const adminDashboardPath = path.resolve(__dirname, '../Frontend/web-admin');
 app.use(cors());
 app.use(express.json());
 
@@ -50,6 +53,9 @@ connectDB()
     startPoller();
 
     app.get('/', (req, res) => res.json({ message: 'Explore Kenya API' }));
+    if (fs.existsSync(adminDashboardPath)) {
+      app.use('/admin-dashboard', express.static(adminDashboardPath));
+    }
 
     app.use('/api/auth', authRoutes);
     app.use('/api/users', userRoutes);
@@ -59,6 +65,8 @@ connectDB()
     app.use('/api/live-streams', liveStreamRoutes);
     app.use('/api/flights', flightRoutes);
     app.use('/api/weather', weatherRoutes);
+    app.use('/api/admin', adminRoutes);
+    app.use('/api/upload', uploadRoutes);
     app.use('/api/bookings', require('./routes/bookingRoutes'));
     app.use('/api/mpesa', require('./routes/mpesaRoutes'));
 

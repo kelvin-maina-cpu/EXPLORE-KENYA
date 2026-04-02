@@ -9,7 +9,7 @@ const RAPIDAPI_KEY = getSanitizedEnvValue('RAPIDAPI_KEY');
 const AVIATIONSTACK_API_KEY = getSanitizedEnvValue('AVIATIONSTACK_API_KEY');
 const AERODATABOX_HOST = 'aerodatabox.p.rapidapi.com';
 const AERODATABOX_BASE = 'https://aerodatabox.p.rapidapi.com';
-const AVIATIONSTACK_BASE = 'http://api.aviationstack.com/v1';
+const AVIATIONSTACK_BASE = 'https://api.aviationstack.com/v1';
 
 const KENYA_AIRPORTS = [
   { name: 'Nairobi Jomo Kenyatta', iata: 'NBO', icao: 'HKJK' },
@@ -216,13 +216,14 @@ const mapAviationStackSearchResult = (flight, fallbackFlightNumber) => ({
   duration: 'N/A',
 });
 
-const respondWithProviderFailure = (res, errors) => {
-  res.status(502).json({
-    success: false,
-    message: 'Unable to load flight data from the configured providers.',
+const respondWithProviderFailure = (res, payload, errors) =>
+  res.json({
+    success: true,
+    unavailable: true,
+    message: 'Live flight data is temporarily unavailable. Please try again later.',
     providers: errors,
+    ...payload,
   });
-};
 
 router.get('/departures', asyncHandler(async (req, res) => {
   const { icao = 'HKJK' } = req.query;
@@ -254,7 +255,7 @@ router.get('/departures', asyncHandler(async (req, res) => {
     providerErrors.push(createProviderError('AviationStack', error));
   }
 
-  return respondWithProviderFailure(res, providerErrors);
+  return respondWithProviderFailure(res, { airport: icao, total: 0, flights: [] }, providerErrors);
 }));
 
 router.get('/arrivals', asyncHandler(async (req, res) => {
@@ -287,7 +288,7 @@ router.get('/arrivals', asyncHandler(async (req, res) => {
     providerErrors.push(createProviderError('AviationStack', error));
   }
 
-  return respondWithProviderFailure(res, providerErrors);
+  return respondWithProviderFailure(res, { airport: icao, total: 0, flights: [] }, providerErrors);
 }));
 
 router.get('/search', asyncHandler(async (req, res) => {
@@ -325,7 +326,7 @@ router.get('/search', asyncHandler(async (req, res) => {
     providerErrors.push(createProviderError('AviationStack', error));
   }
 
-  return respondWithProviderFailure(res, providerErrors);
+  return respondWithProviderFailure(res, { total: 0, flights: [] }, providerErrors);
 }));
 
 router.get('/airports', asyncHandler(async (req, res) => {

@@ -62,6 +62,7 @@ const FALLBACK_API_BASE_URLS = uniqueValues([
 ].filter((origin) => origin !== joinApiPath(primaryOrigin)));
 
 const API_BASE_URL = joinApiPath(primaryOrigin);
+export const API_ORIGIN = primaryOrigin;
 let sessionToken = '';
 
 export const setSessionToken = (token) => {

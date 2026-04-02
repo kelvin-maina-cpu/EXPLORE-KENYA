@@ -9,6 +9,8 @@ const AUTH_TOKEN_KEY = 'authToken';
 const AUTH_USER_KEY = 'authUser';
 const BIOMETRIC_EMAIL_KEY = 'biometricEmail';
 const BIOMETRIC_PASSWORD_KEY = 'biometricPassword';
+const BIOMETRIC_SETUP_EMAIL_KEY = 'biometricSetupEmail';
+const BIOMETRIC_SETUP_PASSWORD_KEY = 'biometricSetupPassword';
 const SAVED_LOGIN_EMAIL_KEY = 'savedLoginEmail';
 const SAVED_LOGIN_PASSWORD_KEY = 'savedLoginPassword';
 
@@ -60,6 +62,21 @@ export const AuthProvider = ({ children }) => {
     void initializeAuth();
   }, []);
 
+  const persistBiometricSetupCredentials = async (email, password) => {
+    const normalizedEmail = `${email || ''}`.trim().toLowerCase();
+    const normalizedPassword = `${password || ''}`;
+
+    if (!normalizedEmail || !normalizedPassword) {
+      return;
+    }
+
+    await Promise.all([
+      SecureStore.setItemAsync(BIOMETRIC_SETUP_EMAIL_KEY, normalizedEmail),
+      SecureStore.setItemAsync(BIOMETRIC_SETUP_PASSWORD_KEY, normalizedPassword),
+    ]);
+    setLastLoginCredentials({ email: normalizedEmail, password: normalizedPassword });
+  };
+
   const refreshBiometricState = async () => {
     const LocalAuthentication = getLocalAuthenticationModule();
     if (!LocalAuthentication) {
@@ -100,6 +117,15 @@ export const AuthProvider = ({ children }) => {
         SecureStore.getItemAsync(AUTH_USER_KEY),
       ]);
 
+      const [setupEmail, setupPassword] = await Promise.all([
+        SecureStore.getItemAsync(BIOMETRIC_SETUP_EMAIL_KEY),
+        SecureStore.getItemAsync(BIOMETRIC_SETUP_PASSWORD_KEY),
+      ]);
+
+      if (setupEmail && setupPassword) {
+        setLastLoginCredentials({ email: setupEmail, password: setupPassword });
+      }
+
       if (savedToken && savedUser) {
         setSessionToken(savedToken);
         dispatch({ type: 'LOGIN', payload: JSON.parse(savedUser) });
@@ -117,7 +143,9 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     dispatch({ type: 'LOADING', payload: true });
     try {
-      const response = await api.post('/auth/login', { email, password });
+      const normalizedEmail = `${email || ''}`.trim().toLowerCase();
+      const normalizedPassword = `${password || ''}`;
+      const response = await api.post('/auth/login', { email: normalizedEmail, password: normalizedPassword });
       const { token, user } = extractAuthPayload(response.data);
 
       if (!token || !user?._id) {
@@ -127,7 +155,7 @@ export const AuthProvider = ({ children }) => {
       setSessionToken(token);
       await SecureStore.setItemAsync(AUTH_TOKEN_KEY, token);
       await SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(user));
-      setLastLoginCredentials({ email, password });
+      await persistBiometricSetupCredentials(normalizedEmail, normalizedPassword);
       dispatch({ type: 'LOGIN', payload: user });
       return { success: true };
     } catch (error) {
@@ -170,14 +198,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   const enableBiometricLoginFromSession = async () => {
-    if (!lastLoginCredentials?.email || !lastLoginCredentials?.password) {
+    const setupEmail = lastLoginCredentials?.email || await SecureStore.getItemAsync(BIOMETRIC_SETUP_EMAIL_KEY);
+    const setupPassword = lastLoginCredentials?.password || await SecureStore.getItemAsync(BIOMETRIC_SETUP_PASSWORD_KEY);
+
+    if (!setupEmail || !setupPassword) {
       return {
         success: false,
-        error: 'Log in with your email and password in this session before enabling fingerprint login.',
+        error: 'Sign in once with your email and password before enabling fingerprint login.',
       };
     }
 
-    return enableBiometricLogin(lastLoginCredentials.email, lastLoginCredentials.password);
+    return enableBiometricLogin(setupEmail, setupPassword);
   };
 
   const disableBiometricLogin = async () => {
@@ -261,7 +292,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       clearSessionToken();
-      setLastLoginCredentials(null);
+      await persistBiometricSetupCredentials(userData.email, userData.password);
       dispatch({ type: 'LOGOUT' });
       return { success: true, message: 'Account created successfully.' };
     } catch (error) {
@@ -275,7 +306,6 @@ export const AuthProvider = ({ children }) => {
     await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
     await SecureStore.deleteItemAsync(AUTH_USER_KEY);
     clearSessionToken();
-    setLastLoginCredentials(null);
     dispatch({ type: 'LOGOUT' });
   };
 
@@ -324,6 +354,7 @@ export const AuthProvider = ({ children }) => {
     biometricAvailable,
     biometricEnabled,
     biometricModuleAvailable,
+    biometricSetupReady: Boolean(lastLoginCredentials?.email && lastLoginCredentials?.password),
     savedCredentials,
     biometricSupportMessage: biometricModuleAvailable
       ? biometricAvailable
