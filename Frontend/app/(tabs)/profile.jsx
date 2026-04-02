@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+  import { useRouter } from 'expo-router';
 import {
   Alert,
   ScrollView,
@@ -30,7 +31,8 @@ export default function ProfileScreen() {
     disableBiometricLogin,
   } = useAuth();
   const { language, setLanguage, t } = useLocale();
-  const { theme, isDarkMode, toggleTheme } = useTheme();
+const { theme, isDarkMode, toggleTheme } = useTheme();
+  const router = useRouter();
   const [form, setForm] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -295,7 +297,10 @@ export default function ProfileScreen() {
           <Text style={[styles.primaryButtonText, { color: colors.primaryText }]}>{loading ? t('loading') : t('save_profile')}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.secondaryButton, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={logout}>
+<TouchableOpacity style={[styles.secondaryButton, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={async () => {
+            await logout();
+            router.replace('/(auth)/login');
+          }}>
           <Text style={[styles.secondaryButtonText, { color: colors.danger }]}>{t('logout')}</Text>
         </TouchableOpacity>
       </ScrollView>
