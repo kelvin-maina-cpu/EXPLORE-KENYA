@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import api, { getAttraction } from '../../services/api';
+import { getAttraction, getCachedApiData } from '../../services/api';
 import { useLocale } from '../../context/LocalizationContext';
 
 const CATEGORY_ICONS = {
@@ -84,7 +84,10 @@ export default function AttractionDetailsScreen() {
         ? `/weather/current?lat=${latitude}&lon=${longitude}`
         : `/weather/current?city=${encodeURIComponent(attraction?.county || attraction?.name || 'Nairobi')}`;
 
-      const { data } = await api.get(query);
+      const { data } = await getCachedApiData(query, {
+        policy: 'network-first',
+        ttlMs: 30 * 60 * 1000,
+      });
       setWeather(data.weather || null);
       setWeatherNotice(data.message || '');
     } catch (loadError) {
@@ -136,6 +139,20 @@ export default function AttractionDetailsScreen() {
       pathname: `/broadcast/${attraction?._id || id}`,
       params: {
         attractionName: attraction?.name || t('broadcast_park_camera'),
+      },
+    });
+  };
+
+  const openInAppPage = (url, title) => {
+    if (!url) {
+      return;
+    }
+
+    router.push({
+      pathname: '/in-app-browser',
+      params: {
+        url,
+        title,
       },
     });
   };
@@ -236,6 +253,30 @@ export default function AttractionDetailsScreen() {
               </Text>
             </View>
           </TouchableOpacity>
+
+          {attraction.websiteUrl ? (
+            <TouchableOpacity style={styles.secondaryAction} onPress={() => { openInAppPage(attraction.websiteUrl, `${attraction.name} Website`); }}>
+              <Ionicons name="globe-outline" size={20} color="#173457" />
+              <View style={styles.actionCopy}>
+                <Text style={styles.secondaryActionTitle}>Visit Official Website</Text>
+                <Text style={styles.secondaryActionText}>
+                  Open the official destination website in your browser.
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ) : null}
+
+          {attraction.bookingUrl ? (
+            <TouchableOpacity style={styles.secondaryAction} onPress={() => { openInAppPage(attraction.bookingUrl, `${attraction.name} Booking`); }}>
+              <Ionicons name="open-outline" size={20} color="#173457" />
+              <View style={styles.actionCopy}>
+                <Text style={styles.secondaryActionTitle}>Book Online</Text>
+                <Text style={styles.secondaryActionText}>
+                  Continue to the official booking page for this attraction.
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         {weatherVisible ? (

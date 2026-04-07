@@ -8,14 +8,20 @@ if (fs.existsSync(localEnvPath)) {
 }
 
 const cleanEnv = (value) => value?.trim();
+const IS_PRODUCTION = process.env.MPESA_ENV === 'production';
 
 const MPESA_CONFIG = {
   CONSUMER_KEY: cleanEnv(process.env.MPESA_CONSUMER_KEY),
   CONSUMER_SECRET: cleanEnv(process.env.MPESA_CONSUMER_SECRET),
-  SHORTCODE: cleanEnv(process.env.MPESA_SHORTCODE) || '174379',
+  SHORTCODE: cleanEnv(process.env.MPESA_SHORTCODE) || '5369758',
   PASSKEY: cleanEnv(process.env.MPESA_PASSKEY),
   CALLBACK_URL: cleanEnv(process.env.MPESA_CALLBACK_URL),
-  BASE_URL: cleanEnv(process.env.MPESA_ENDPOINT)?.replace(/\/+$/, '') || 'https://sandbox.safaricom.co.ke',
+  ENDPOINT: IS_PRODUCTION
+    ? 'https://api.safaricom.co.ke'
+    : 'https://sandbox.safaricom.co.ke',
+  BASE_URL:
+    cleanEnv(process.env.MPESA_ENDPOINT)?.replace(/\/+$/, '') ||
+    (IS_PRODUCTION ? 'https://api.safaricom.co.ke' : 'https://sandbox.safaricom.co.ke'),
 };
 
 console.log('MPESA_CONFIG loaded:');
@@ -117,7 +123,7 @@ const stkPush = async (phoneNumber, amount, accountReference, transactionDesc, c
       BusinessShortCode: MPESA_CONFIG.SHORTCODE,
       Password: password,
       Timestamp: timestamp,
-      TransactionType: 'CustomerPayBillOnline',
+      TransactionType: 'CustomerBuyGoodsOnline',
       Amount: intAmount,
       PartyA: normalizedPhone,
       PartyB: MPESA_CONFIG.SHORTCODE,

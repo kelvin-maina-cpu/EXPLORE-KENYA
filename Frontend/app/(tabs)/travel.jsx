@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import api from '../../services/api';
+import { getCachedApiData } from '../../services/api';
 
 const WEATHER_CITIES = ['Nairobi', 'Mombasa', 'Maasai Mara', 'Amboseli', 'Diani Beach', 'Nakuru', 'Lamu'];
 
@@ -193,7 +193,10 @@ export default function TravelPlannerScreen() {
     try {
       setLoadingWeather(true);
       setError(null);
-      const { data } = await api.get('/weather/kenya');
+      const { data } = await getCachedApiData('/weather/kenya', {
+        policy: 'network-first',
+        ttlMs: 30 * 60 * 1000,
+      });
       setWeatherData(data.destinations?.filter((destination) => !destination.error) || []);
     } catch {
       setError('Failed to load weather. Check your connection.');
@@ -204,7 +207,10 @@ export default function TravelPlannerScreen() {
 
   const fetchAirports = async () => {
     try {
-      const { data } = await api.get('/flights/airports');
+      const { data } = await getCachedApiData('/flights/airports', {
+        policy: 'network-first',
+        ttlMs: 24 * 60 * 60 * 1000,
+      });
       const nextAirports = data.airports || [];
       setAirports(nextAirports);
       setSelectedAirport((current) => current || nextAirports[0] || FALLBACK_AIRPORTS[0]);
@@ -217,7 +223,10 @@ export default function TravelPlannerScreen() {
   const fetchForecast = async (city) => {
     try {
       setLoadingForecast(true);
-      const { data } = await api.get(`/weather/forecast?city=${encodeURIComponent(city)}`);
+      const { data } = await getCachedApiData(`/weather/forecast?city=${encodeURIComponent(city)}`, {
+        policy: 'network-first',
+        ttlMs: 30 * 60 * 1000,
+      });
       setForecastData(data.forecast || []);
     } catch {
       setForecastData([]);
@@ -239,7 +248,10 @@ export default function TravelPlannerScreen() {
         flightMode === 'departures'
           ? `/flights/departures?icao=${selectedAirport.icao}`
           : `/flights/arrivals?icao=${selectedAirport.icao}`;
-      const { data } = await api.get(endpoint);
+      const { data } = await getCachedApiData(endpoint, {
+        policy: 'network-first',
+        ttlMs: 20 * 60 * 1000,
+      });
       setFlights(data.flights || []);
       setFlightNotice(data.message || '');
     } catch (requestError) {
@@ -259,7 +271,10 @@ export default function TravelPlannerScreen() {
       setLoadingFlights(true);
       setError(null);
       setFlightNotice('');
-      const { data } = await api.get(`/flights/search?flight=${flightSearch.trim()}`);
+      const { data } = await getCachedApiData(`/flights/search?flight=${flightSearch.trim()}`, {
+        policy: 'network-first',
+        ttlMs: 20 * 60 * 1000,
+      });
       setFlights(data.flights || []);
       setFlightNotice(data.message || '');
     } catch (requestError) {

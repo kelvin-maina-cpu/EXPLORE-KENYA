@@ -17,7 +17,7 @@ import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { useLocale } from '../../context/LocalizationContext';
-import api from '../../services/api';
+import api, { getAttraction, getCachedApiData } from '../../services/api';
 
 const DEFAULT_REGION = {
   latitude: -1.286389,
@@ -389,7 +389,7 @@ export default function AttractionMapScreen() {
       try {
         setWeatherLoading(true);
         setWeatherError('');
-        const { data } = await api.get(
+        const { data } = await getCachedApiData(
           `/weather/current?lat=${destination.latitude}&lon=${destination.longitude}&city=${encodeURIComponent(destinationName || 'Destination')}`
         );
         setWeather(data.weather || null);
@@ -585,8 +585,8 @@ export default function AttractionMapScreen() {
       let attractionResponse = null;
 
       if (!hasRequestedDestination) {
-        attractionResponse = await api.get(`/attractions/${id}`);
-        setAttraction(attractionResponse.data);
+        attractionResponse = await getAttraction(id);
+        setAttraction(attractionResponse);
       } else {
         setAttraction((current) => current || {
           _id: String(Array.isArray(id) ? id[0] : id || ''),
@@ -953,8 +953,12 @@ export default function AttractionMapScreen() {
                 try {
                   setWeatherLoading(true);
                   setWeatherError('');
-                  const { data } = await api.get(
-                    `/weather/current?lat=${destination.latitude}&lon=${destination.longitude}&city=${encodeURIComponent(destinationName || 'Destination')}`
+                  const { data } = await getCachedApiData(
+                    `/weather/current?lat=${destination.latitude}&lon=${destination.longitude}&city=${encodeURIComponent(destinationName || 'Destination')}`,
+                    {
+                      policy: 'network-first',
+                      ttlMs: 30 * 60 * 1000,
+                    }
                   );
                   setWeather(data.weather || null);
                   setWeatherNotice(data.message || '');

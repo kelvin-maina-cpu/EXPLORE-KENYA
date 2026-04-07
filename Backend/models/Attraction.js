@@ -38,6 +38,14 @@ const attractionSchema = new mongoose.Schema({
     nonResident: { type: Number, default: 0 }
   },
   highlights: [String],
+  websiteUrl: {
+    type: String,
+    default: '',
+  },
+  bookingUrl: {
+    type: String,
+    default: '',
+  },
   isActive: {
     type: Boolean,
     default: true

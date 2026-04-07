@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import api from '../../services/api';
+import api, { getCachedApiData } from '../../services/api';
 import { useLocale } from '../../context/LocalizationContext';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -26,7 +26,10 @@ export default function ChatbotScreen() {
   useEffect(() => {
     const loadSuggestions = async () => {
       try {
-        const response = await api.get('/chatbot/knowledge');
+        const response = await getCachedApiData('/chatbot/knowledge', {
+          policy: 'cache-first',
+          ttlMs: 24 * 60 * 60 * 1000,
+        });
         const prompts = Array.isArray(response.data) ? response.data.slice(0, 4).map((item) => item.question) : [];
         setSuggestions(prompts);
       } catch (error) {

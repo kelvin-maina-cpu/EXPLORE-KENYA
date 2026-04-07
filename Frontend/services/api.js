@@ -1,5 +1,6 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
+import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 
 const API_PORT = '5000';
@@ -64,6 +65,107 @@ const FALLBACK_API_BASE_URLS = uniqueValues([
 const API_BASE_URL = joinApiPath(primaryOrigin);
 export const API_ORIGIN = primaryOrigin;
 let sessionToken = '';
+const CACHE_DIRECTORY = `${FileSystem.cacheDirectory || FileSystem.documentDirectory}api-cache/`;
+
+const CACHE_TTLS = {
+  short: 15 * 60 * 1000,
+  medium: 60 * 60 * 1000,
+  long: 24 * 60 * 60 * 1000,
+  extended: 7 * 24 * 60 * 60 * 1000,
+};
+
+let cacheDirectoryReady = false;
+
+const ensureCacheDirectory = async () => {
+  if (cacheDirectoryReady) {
+    return;
+  }
+
+  try {
+    const info = await FileSystem.getInfoAsync(CACHE_DIRECTORY);
+    if (!info.exists) {
+      await FileSystem.makeDirectoryAsync(CACHE_DIRECTORY, { intermediates: true });
+    }
+    cacheDirectoryReady = true;
+  } catch (error) {
+    console.warn('API cache directory setup failed:', error?.message || error);
+  }
+};
+
+const hashString = (value) => {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+
+  return hash.toString(16);
+};
+
+const toQueryString = (params = {}) => {
+  const entries = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+
+  if (!entries.length) {
+    return '';
+  }
+
+  return entries
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+    .join('&');
+};
+
+const buildCacheKey = (url, params = {}) => {
+  const query = toQueryString(params);
+  return `${url}${query ? `?${query}` : ''}`;
+};
+
+const getCacheFilePath = (cacheKey) => `${CACHE_DIRECTORY}${hashString(cacheKey)}.json`;
+
+const readCachedData = async (cacheKey, ttlMs) => {
+  try {
+    await ensureCacheDirectory();
+    const cacheFilePath = getCacheFilePath(cacheKey);
+    const info = await FileSystem.getInfoAsync(cacheFilePath);
+
+    if (!info.exists) {
+      return null;
+    }
+
+    const fileContents = await FileSystem.readAsStringAsync(cacheFilePath);
+    const payload = JSON.parse(fileContents);
+
+    if (!payload || !('data' in payload) || !payload.timestamp) {
+      return null;
+    }
+
+    if (ttlMs && Date.now() - payload.timestamp > ttlMs) {
+      return null;
+    }
+
+    return payload.data;
+  } catch (error) {
+    console.warn('API cache read failed:', error?.message || error);
+    return null;
+  }
+};
+
+const writeCachedData = async (cacheKey, data) => {
+  try {
+    await ensureCacheDirectory();
+    const cacheFilePath = getCacheFilePath(cacheKey);
+    await FileSystem.writeAsStringAsync(
+      cacheFilePath,
+      JSON.stringify({
+        timestamp: Date.now(),
+        data,
+      })
+    );
+  } catch (error) {
+    console.warn('API cache write failed:', error?.message || error);
+  }
+};
 
 export const setSessionToken = (token) => {
   sessionToken = token || '';
@@ -124,10 +226,63 @@ export default api;
 export const authAPI = api;
 export const attractionsAPI = api;
 export const bookingsAPI = api;
-export const getAttraction = (id) => api.get(`/attractions/${id}`).then((response) => response.data);
-export const getAttractions = () => api.get('/attractions').then((response) => response.data);
+export const getCachedApiData = async (
+  url,
+  {
+    params,
+    policy = 'network-first',
+    ttlMs = CACHE_TTLS.medium,
+  } = {}
+) => {
+  const cacheKey = buildCacheKey(url, params);
+
+  if (policy === 'cache-first') {
+    const cachedData = await readCachedData(cacheKey, ttlMs);
+    if (cachedData !== null) {
+      return {
+        data: cachedData,
+        meta: { fromCache: true },
+      };
+    }
+  }
+
+  try {
+    const response = await api.get(url, { params });
+    await writeCachedData(cacheKey, response.data);
+    return {
+      data: response.data,
+      meta: { fromCache: false },
+    };
+  } catch (error) {
+    const cachedData = await readCachedData(cacheKey, ttlMs);
+
+    if (cachedData !== null) {
+      return {
+        data: cachedData,
+        meta: { fromCache: true, stale: true },
+      };
+    }
+
+    throw error;
+  }
+};
+
+export const getAttraction = (id) =>
+  getCachedApiData(`/attractions/${id}`, {
+    policy: 'cache-first',
+    ttlMs: CACHE_TTLS.extended,
+  }).then((response) => response.data);
+export const getAttractions = () =>
+  getCachedApiData('/attractions', {
+    policy: 'cache-first',
+    ttlMs: CACHE_TTLS.extended,
+  }).then((response) => response.data);
 export const createBooking = (data) => api.post('/bookings', data).then((response) => response.data);
-export const getMyBookings = () => api.get('/bookings/my').then((response) => response.data);
+export const getMyBookings = () =>
+  getCachedApiData('/bookings/my', {
+    policy: 'network-first',
+    ttlMs: CACHE_TTLS.long,
+  }).then((response) => response.data);
 
 export const getLiveStreams = () => api.get('/live-streams').then((response) => response.data);
 export const getLiveStream = (streamId) => api.get(`/live-streams/${streamId}`).then((response) => response.data);

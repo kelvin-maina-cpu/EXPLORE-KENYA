@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import api from '../services/api';
+import { getCachedApiData } from '../services/api';
 import { useLocale } from '../context/LocalizationContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -33,8 +33,10 @@ export default function WildlifeScreen() {
     const loadWildlife = async () => {
       setLoading(true);
       try {
-        const response = await api.get('/wildlife', {
+        const response = await getCachedApiData('/wildlife', {
           params: { search: search.trim() || undefined },
+          policy: 'cache-first',
+          ttlMs: 24 * 60 * 60 * 1000,
         });
         setWildlife(Array.isArray(response.data) ? response.data : []);
       } catch (error) {
