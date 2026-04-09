@@ -18,7 +18,7 @@ const attractionImageMap = {
   [normalizeAttractionName("Hell's Gate National Park")]: require('../assets/attractions/hells-gate-national-park.jpg'),
   [normalizeAttractionName('Diani Beach')]: require('../assets/attractions/diani-beach.jpg'),
   [normalizeAttractionName('Watamu Marine National Park')]: require('../assets/attractions/watamu-marine-national-park.jpeg'),
-  [normalizeAttractionName('Mombasa Old Town')]: require('../assets/attractions/mombasa-old-town.png'),
+  [normalizeAttractionName('Mombasa Old Town')]: require('../assets/attractions/mombasa-old-town.jpg'),
   [normalizeAttractionName('Lake Bogoria National Reserve')]: require('../assets/attractions/lake-bogoria-national-reserve.jpg'),
   [normalizeAttractionName('Ol Pejeta Conservancy')]: require('../assets/attractions/ol-pejeta-conservancy.jpg'),
   [normalizeAttractionName('Arabuko Sokoke Forest')]: require('../assets/attractions/arabuko-sokoke-forest.jpeg'),

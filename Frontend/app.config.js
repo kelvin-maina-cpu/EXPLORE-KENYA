@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-const projectId = process.env.EAS_PROJECT_ID || '790bc6ce-d430-47bd-81f5-3b3dd40f2afc';
+const projectId = process.env.EAS_PROJECT_ID || '6b10e995-64ad-48fe-bc50-0fef6362886e';
 const apiUrl = process.env.API_URL || 'https://explore-kenya-hp95.onrender.com';
 const appName = process.env.APP_NAME || 'Explore Kenya';
 const appVersion = process.env.APP_VERSION || '1.0.0';
