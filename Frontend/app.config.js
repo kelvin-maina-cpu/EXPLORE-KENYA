@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-const projectId = process.env.EAS_PROJECT_ID || '6b10e995-64ad-48fe-bc50-0fef6362886e';
+const projectId = process.env.EAS_PROJECT_ID || '03787aae-8441-4ef8-86b7-e19df47dac51';
 const apiUrl = process.env.API_URL || 'https://explore-kenya-hp95.onrender.com';
 const appName = process.env.APP_NAME || 'Explore Kenya';
 const appVersion = process.env.APP_VERSION || '1.0.0';
@@ -8,6 +8,7 @@ const appVersion = process.env.APP_VERSION || '1.0.0';
 export default {
   expo: {
     name: appName,
+    owner: 'askofu',
     slug: 'explore-kenya',
     version: appVersion,
     orientation: 'portrait',
