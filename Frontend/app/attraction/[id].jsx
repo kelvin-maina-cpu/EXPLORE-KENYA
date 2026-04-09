@@ -271,17 +271,6 @@ export default function AttractionDetailsScreen() {
             </TouchableOpacity>
           ) : null}
 
-          {attraction.bookingUrl ? (
-            <TouchableOpacity style={styles.secondaryAction} onPress={() => { openInAppPage(attraction.bookingUrl, `${attraction.name} Booking`); }}>
-              <Ionicons name="open-outline" size={20} color="#173457" />
-              <View style={styles.actionCopy}>
-                <Text style={styles.secondaryActionTitle}>Book Online</Text>
-                <Text style={styles.secondaryActionText}>
-                  Continue to the official booking page for this attraction.
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ) : null}
         </View>
 
         {weatherVisible ? (

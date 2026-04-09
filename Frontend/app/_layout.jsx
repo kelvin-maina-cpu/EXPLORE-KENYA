@@ -1,7 +1,8 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Redirect, Slot, useRootNavigationState, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../context/AuthContext';
+import AppOpeningLoader from '../components/AppOpeningLoader';
 import { LocalizationProvider } from '../context/LocalizationContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 
@@ -18,7 +19,7 @@ function RootNavigator() {
   if (!rootNavigationState?.key || loading) {
     return (
       <View style={[styles.loadingScreen, { backgroundColor: theme.colors.screenMuted }]}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <AppOpeningLoader />
       </View>
     );
   }

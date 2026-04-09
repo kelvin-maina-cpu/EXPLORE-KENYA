@@ -1,8 +1,10 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Image,
+  ImageBackground,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,11 +30,22 @@ const FEATURE_CARDS = [
   },
 ];
 
+const HERO_IMAGES = [
+  require('../assets/hero/Hero1.jpeg'),
+  require('../assets/hero/Hero2.jpeg'),
+  require('../assets/hero/Hero3.jpeg'),
+  require('../assets/hero/Hero4.jpeg'),
+  require('../assets/hero/Hero5.jpeg'),
+];
+
 export default function LandingShowcase({ withinTabs = false }) {
   const router = useRouter();
   const { isAuthenticated, user } = useAuth();
   const { t } = useLocale();
   const glowAnimation = useRef(new Animated.Value(0)).current;
+  const heroScrollRef = useRef(null);
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [heroWidth, setHeroWidth] = useState(0);
 
   const featureCards = useMemo(
     () => [
@@ -67,6 +80,22 @@ export default function LandingShowcase({ withinTabs = false }) {
     };
   }, [glowAnimation]);
 
+  useEffect(() => {
+    if (!heroWidth || HERO_IMAGES.length <= 1) {
+      return undefined;
+    }
+
+    const interval = setInterval(() => {
+      setHeroIndex((current) => {
+        const next = (current + 1) % HERO_IMAGES.length;
+        heroScrollRef.current?.scrollTo({ x: next * heroWidth, animated: true });
+        return next;
+      });
+    }, 4500);
+
+    return () => clearInterval(interval);
+  }, [heroWidth]);
+
   const requireAuthAndPush = (target) => {
     if (isAuthenticated) {
       router.push(target);
@@ -88,6 +117,11 @@ export default function LandingShowcase({ withinTabs = false }) {
     }
   };
 
+  const handleDotPress = (index) => {
+    setHeroIndex(index);
+    heroScrollRef.current?.scrollTo({ x: index * heroWidth, animated: true });
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -95,9 +129,45 @@ export default function LandingShowcase({ withinTabs = false }) {
         contentContainerStyle={[styles.content, withinTabs && styles.contentWithTabs]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroShell}>
+        <View
+          style={styles.heroShell}
+          onLayout={(event) => {
+            const width = event.nativeEvent.layout.width;
+            if (width && width !== heroWidth) {
+              setHeroWidth(width);
+            }
+          }}
+        >
+          <ScrollView
+            ref={heroScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(event) => {
+              const width = heroWidth || event.nativeEvent.layoutMeasurement.width;
+              if (!width) {
+                return;
+              }
+              const index = Math.round(event.nativeEvent.contentOffset.x / width);
+              setHeroIndex(index);
+            }}
+            style={styles.heroCarousel}
+          >
+            {HERO_IMAGES.map((imageSource, index) => (
+              <ImageBackground
+                key={`hero-image-${index}`}
+                source={imageSource}
+                style={[styles.heroSlide, heroWidth ? { width: heroWidth } : null]}
+                imageStyle={styles.heroSlideImage}
+              >
+                <View style={styles.heroImageShade} />
+              </ImageBackground>
+            ))}
+          </ScrollView>
+
           <Animated.View style={[styles.heroGlowLarge, styles.heroGlowOne]} />
           <Animated.View style={[styles.heroGlowSmall, styles.heroGlowTwo]} />
+          <View style={styles.heroBackdrop} />
 
           {withinTabs && isAuthenticated ? (
             <View style={styles.accountChip}>
@@ -107,11 +177,7 @@ export default function LandingShowcase({ withinTabs = false }) {
             </View>
           ) : null}
 
-          <View style={styles.heroBadge}>
-            <Text style={styles.heroBadgeText}>{t('landing_badge')}</Text>
-          </View>
-
-          <Text style={styles.heroTitle}>{t('landing_title')}</Text>
+          <Image source={require('../assets/logo.png')} style={styles.heroLogo} resizeMode="contain" />
           <Text style={styles.heroCopy}>{t('landing_copy')}</Text>
 
           <View style={styles.heroActions}>
@@ -129,6 +195,16 @@ export default function LandingShowcase({ withinTabs = false }) {
               <View key={animal} style={styles.animalBubble}>
                 <Text style={styles.animalEmoji}>{animal}</Text>
               </View>
+            ))}
+          </View>
+
+          <View style={styles.heroDots}>
+            {HERO_IMAGES.map((_, index) => (
+              <TouchableOpacity
+                key={`hero-dot-${index}`}
+                style={[styles.heroDot, index === heroIndex && styles.heroDotActive]}
+                onPress={() => handleDotPress(index)}
+              />
             ))}
           </View>
         </View>
@@ -179,7 +255,7 @@ export default function LandingShowcase({ withinTabs = false }) {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerBrand}>Explore Kenya</Text>
+          <Text style={styles.footerBrand}>(signed in as)</Text>
           <View style={styles.footerLinks}>
             <TouchableOpacity onPress={() => router.push('/about')}>
               <Text style={styles.footerLink}>{t('landing_footer_about')}</Text>
@@ -224,6 +300,24 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     alignItems: 'center',
   },
+  heroCarousel: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroSlide: {
+    flex: 1,
+    height: '100%',
+  },
+  heroSlideImage: {
+    resizeMode: 'cover',
+  },
+  heroImageShade: {
+    flex: 1,
+    backgroundColor: 'rgba(5, 19, 16, 0.45)',
+  },
+  heroBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(6, 26, 22, 0.12)',
+  },
   heroGlowLarge: {
     position: 'absolute',
     right: -26,
@@ -250,13 +344,6 @@ const styles = StyleSheet.create({
   heroGlowTwo: {
     transform: [{ translateX: -18 }, { translateY: -12 }],
   },
-  heroBadge: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderRadius: 999,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    marginBottom: 20,
-  },
   accountChip: {
     alignSelf: 'stretch',
     marginBottom: 14,
@@ -271,19 +358,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
-  heroBadgeText: {
-    color: '#F5FFF9',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  heroTitle: {
-    color: '#FFFFFF',
-    fontSize: 34,
-    lineHeight: 40,
-    fontWeight: '300',
-    textAlign: 'center',
-    maxWidth: 620,
+  heroLogo: {
+    width: 220,
+    height: 90,
+    marginBottom: 12,
   },
   heroCopy: {
     marginTop: 20,
@@ -350,6 +428,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  heroDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 22,
+  },
+  heroDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.42)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.36)',
+  },
+  heroDotActive: {
+    width: 26,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   statsRow: {
     flexDirection: 'row',
