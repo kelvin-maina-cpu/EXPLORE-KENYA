@@ -19,7 +19,7 @@ export default {
       backgroundColor: '#ffffff',
     },
     scheme: 'explorekenya',
-    platforms: ['ios', 'android'],
+    platforms: ['ios', 'android', 'web'],
     assetBundlePatterns: ['**/*'],
     ios: {
       supportsTablet: true,

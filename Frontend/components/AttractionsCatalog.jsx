@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   StyleSheet,
   Text,
   TextInput,
@@ -13,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocalizationContext';
 import { useTheme } from '../context/ThemeContext';
+import { getAttractionImageSource } from '../data/attractionImages';
 import { getAttractions } from '../services/api';
 
 const CATEGORY_ICONS = {
@@ -81,28 +83,36 @@ export default function AttractionsCatalog() {
     return translated === key ? value.charAt(0).toUpperCase() + value.slice(1) : translated;
   };
 
-  const renderCard = ({ item }) => (
-    <TouchableOpacity
-      style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
-      onPress={() => router.push(`/attraction/${item._id}`)}
-    >
-      <View style={[styles.cardImg, { backgroundColor: theme.colors.tabActiveBackground }]}>
-        <Text style={styles.cardEmoji}>{CATEGORY_ICONS[(item.category || '').toLowerCase()] || '\u{1F33F}'}</Text>
-      </View>
-      <View style={styles.cardBody}>
-        <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{item.name}</Text>
-        <Text style={[styles.cardDesc, { color: theme.colors.textMuted }]} numberOfLines={2}>
-          {item.description}
-        </Text>
-        <View style={styles.cardFooter}>
-          <View style={[styles.tag, { backgroundColor: theme.colors.tabActiveBackground }]}>
-            <Text style={[styles.tagText, { color: theme.colors.tabActive }]}>{formatFilterLabel((item.category || 'wildlife').toLowerCase())}</Text>
-          </View>
-          <Text style={[styles.viewMore, { color: theme.colors.tabActive }]}>{t('catalog_view_more')} {'->'}</Text>
+  const renderCard = ({ item }) => {
+    const imageSource = getAttractionImageSource(item.name);
+
+    return (
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+        onPress={() => router.push(`/attraction/${item._id}`)}
+      >
+        <View style={[styles.cardImg, { backgroundColor: theme.colors.tabActiveBackground }]}>
+          {imageSource ? (
+            <Image source={imageSource} style={styles.cardImageAsset} resizeMode="cover" />
+          ) : (
+            <Text style={styles.cardEmoji}>{CATEGORY_ICONS[(item.category || '').toLowerCase()] || '\u{1F33F}'}</Text>
+          )}
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.cardBody}>
+          <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{item.name}</Text>
+          <Text style={[styles.cardDesc, { color: theme.colors.textMuted }]} numberOfLines={2}>
+            {item.description}
+          </Text>
+          <View style={styles.cardFooter}>
+            <View style={[styles.tag, { backgroundColor: theme.colors.tabActiveBackground }]}>
+              <Text style={[styles.tagText, { color: theme.colors.tabActive }]}>{formatFilterLabel((item.category || 'wildlife').toLowerCase())}</Text>
+            </View>
+            <Text style={[styles.viewMore, { color: theme.colors.tabActive }]}>{t('catalog_view_more')} {'->'}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.screenMuted }]}>
@@ -277,6 +287,10 @@ const styles = StyleSheet.create({
     height: 120,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cardImageAsset: {
+    width: '100%',
+    height: '100%',
   },
   cardEmoji: {
     fontSize: 48,

@@ -8,6 +8,7 @@
     "start:tunnel": "expo start --tunnel",
     "start:clear": "expo start -c",
     "start:clear:tunnel": "expo start -c --tunnel",
+    "build": "expo export --platform web",
     "android:clear": "expo start -c --android",
     "android:dev-client": "expo start --dev-client --android",
     "android": "expo run:android",

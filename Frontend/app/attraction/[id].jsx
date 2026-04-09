@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getAttraction, getCachedApiData } from '../../services/api';
 import { useLocale } from '../../context/LocalizationContext';
+import { getAttractionImageSource } from '../../data/attractionImages';
 
 const CATEGORY_ICONS = {
   wildlife: 'paw-outline',
@@ -73,6 +74,7 @@ export default function AttractionDetailsScreen() {
   const nonResidentFee = useMemo(() => attraction?.entryFee?.nonResident ?? 0, [attraction]);
   const category = attraction?.category || 'wildlife';
   const categoryIcon = CATEGORY_ICONS[category.toLowerCase()] || 'leaf-outline';
+  const attractionImage = getAttractionImageSource(attraction?.name);
 
   const loadDestinationWeather = async () => {
     try {
@@ -188,12 +190,15 @@ export default function AttractionDetailsScreen() {
         </TouchableOpacity>
 
         <View style={styles.heroCard}>
-          <View style={styles.heroBadge}>
-            <Ionicons name={categoryIcon} size={18} color="#173457" />
-            <Text style={styles.heroBadgeText}>{category}</Text>
+          {attractionImage ? <Image source={attractionImage} style={styles.heroImage} resizeMode="cover" /> : null}
+          <View style={styles.heroOverlay}>
+            <View style={styles.heroBadge}>
+              <Ionicons name={categoryIcon} size={18} color="#173457" />
+              <Text style={styles.heroBadgeText}>{category}</Text>
+            </View>
+            <Text style={styles.heroTitle}>{attraction.name}</Text>
+            <Text style={styles.heroCopy}>{attraction.description || t('attraction_discover_copy')}</Text>
           </View>
-          <Text style={styles.heroTitle}>{attraction.name}</Text>
-          <Text style={styles.heroCopy}>{attraction.description || t('attraction_discover_copy')}</Text>
         </View>
 
         <View style={[styles.statsRow, isCompact && styles.statsRowCompact]}>
@@ -368,7 +373,18 @@ const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: '#173457',
     borderRadius: 28,
+    overflow: 'hidden',
+    minHeight: 280,
+  },
+  heroImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  heroOverlay: {
+    backgroundColor: 'rgba(23, 52, 87, 0.72)',
     padding: 22,
+    minHeight: 280,
   },
   heroBadge: {
     alignSelf: 'flex-start',

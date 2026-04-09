@@ -1,3 +1,5 @@
+const { withAttractionLinks } = require('./attractionLinks');
+
 module.exports = [
   {
     name: 'Maasai Mara National Reserve',
@@ -219,4 +221,4 @@ module.exports = [
     highlights: ['Sable antelope', 'Sheldrick Falls', 'Elephants', 'Coastal forest'],
     isActive: true,
   },
-];
+].map(withAttractionLinks);
