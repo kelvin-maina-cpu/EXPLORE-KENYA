@@ -16,6 +16,9 @@ const MPESA_CONFIG = {
   SHORTCODE: cleanEnv(process.env.MPESA_SHORTCODE) || '5369758',
   PASSKEY: cleanEnv(process.env.MPESA_PASSKEY),
   CALLBACK_URL: cleanEnv(process.env.MPESA_CALLBACK_URL),
+  TRANSACTION_TYPE:
+    cleanEnv(process.env.MPESA_TRANSACTION_TYPE) ||
+    (cleanEnv(process.env.MPESA_SHORTCODE) === '174379' ? 'CustomerPayBillOnline' : 'CustomerBuyGoodsOnline'),
   ENDPOINT: IS_PRODUCTION
     ? 'https://api.safaricom.co.ke'
     : 'https://sandbox.safaricom.co.ke',
@@ -27,6 +30,7 @@ const MPESA_CONFIG = {
 console.log('MPESA_CONFIG loaded:');
 console.log('  BASE_URL:', MPESA_CONFIG.BASE_URL);
 console.log('  SHORTCODE:', MPESA_CONFIG.SHORTCODE);
+console.log('  TRANSACTION_TYPE:', MPESA_CONFIG.TRANSACTION_TYPE);
 console.log('  CONSUMER_KEY:', MPESA_CONFIG.CONSUMER_KEY ? 'Set' : 'Missing');
 console.log('  CONSUMER_SECRET:', MPESA_CONFIG.CONSUMER_SECRET ? 'Set' : 'Missing');
 console.log('  PASSKEY:', MPESA_CONFIG.PASSKEY ? 'Set' : 'Missing');
@@ -117,13 +121,14 @@ const stkPush = async (phoneNumber, amount, accountReference, transactionDesc, c
     console.log('  Phone:', normalizedPhone);
     console.log('  Amount:', intAmount);
     console.log('  Shortcode:', MPESA_CONFIG.SHORTCODE);
+    console.log('  Transaction Type:', MPESA_CONFIG.TRANSACTION_TYPE);
     console.log('  Callback URL:', resolvedCallbackUrl);
 
     const payload = {
       BusinessShortCode: MPESA_CONFIG.SHORTCODE,
       Password: password,
       Timestamp: timestamp,
-      TransactionType: 'CustomerBuyGoodsOnline',
+      TransactionType: MPESA_CONFIG.TRANSACTION_TYPE,
       Amount: intAmount,
       PartyA: normalizedPhone,
       PartyB: MPESA_CONFIG.SHORTCODE,
