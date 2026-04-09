@@ -255,7 +255,7 @@ export default function LandingShowcase({ withinTabs = false }) {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerBrand}>(signed in as)</Text>
+          <Text style={styles.footerBrand}>EXPLORE KENYA</Text>
           <View style={styles.footerLinks}>
             <TouchableOpacity onPress={() => router.push('/about')}>
               <Text style={styles.footerLink}>{t('landing_footer_about')}</Text>

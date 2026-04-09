@@ -83,7 +83,7 @@ const translations = {
     confirm_password: 'Confirm Password',
     reset_password: 'Reset Password',
     profile_title: 'Profile Management',
-    profile_copy: 'Update your account details, interests, and preferred app language.',
+    profile_copy: 'Update your account details, preferred app language, and reading style.',
     save_profile: 'Save Profile',
     language: 'Language',
     interests: 'Travel Interests',

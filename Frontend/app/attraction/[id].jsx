@@ -15,6 +15,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getAttraction, getCachedApiData } from '../../services/api';
 import { useLocale } from '../../context/LocalizationContext';
 import { getAttractionImageSource } from '../../data/attractionImages';
+import { getAttractionWebsiteUrl } from '../../data/attractionWebsiteUrls';
 
 const CATEGORY_ICONS = {
   wildlife: 'paw-outline',
@@ -75,6 +76,7 @@ export default function AttractionDetailsScreen() {
   const category = attraction?.category || 'wildlife';
   const categoryIcon = CATEGORY_ICONS[category.toLowerCase()] || 'leaf-outline';
   const attractionImage = getAttractionImageSource(attraction?.name);
+  const attractionWebsiteUrl = getAttractionWebsiteUrl(attraction?.name, attraction?.websiteUrl);
 
   const loadDestinationWeather = async () => {
     try {
@@ -259,8 +261,8 @@ export default function AttractionDetailsScreen() {
             </View>
           </TouchableOpacity>
 
-          {attraction.websiteUrl ? (
-            <TouchableOpacity style={styles.secondaryAction} onPress={() => { openInAppPage(attraction.websiteUrl, `${attraction.name} Website`); }}>
+          {attractionWebsiteUrl ? (
+            <TouchableOpacity style={styles.secondaryAction} onPress={() => { openInAppPage(attractionWebsiteUrl, `${attraction.name} Website`); }}>
               <Ionicons name="globe-outline" size={20} color="#173457" />
               <View style={styles.actionCopy}>
                 <Text style={styles.secondaryActionTitle}>Visit Official Website</Text>

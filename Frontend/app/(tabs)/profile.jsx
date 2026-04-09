@@ -16,8 +16,6 @@ import { useAuth } from '../../context/AuthContext';
 import { AVAILABLE_LANGUAGES, useLocale } from '../../context/LocalizationContext';
 import { useTheme } from '../../context/ThemeContext';
 
-const availableInterests = ['wildlife', 'culture', 'adventure', 'history'];
-
 export default function ProfileScreen() {
   const {
     user,
@@ -32,14 +30,13 @@ export default function ProfileScreen() {
     disableBiometricLogin,
   } = useAuth();
   const { language, setLanguage, t } = useLocale();
-const { theme, isDarkMode, toggleTheme } = useTheme();
+  const { theme, isDarkMode, toggleTheme, fontPreference, setFontPreference, availableFonts } = useTheme();
   const router = useRouter();
   const [form, setForm] = useState({
     name: user?.name || '',
     email: user?.email || '',
     phoneNumber: user?.phoneNumber || '',
     languages: user?.preferences?.languages || [language || 'en'],
-    interests: user?.preferences?.interests || [],
   });
 
   useEffect(() => {
@@ -48,27 +45,12 @@ const { theme, isDarkMode, toggleTheme } = useTheme();
       email: user?.email || '',
       phoneNumber: user?.phoneNumber || '',
       languages: user?.preferences?.languages || [language || 'en'],
-      interests: user?.preferences?.interests || [],
     });
   }, [language, user]);
 
   const colors = theme.colors;
 
   const activeLanguage = useMemo(() => form.languages?.[0] || language || 'en', [form.languages, language]);
-  const formatInterestLabel = (value) => {
-    const key = `category_${value}`;
-    const translated = t(key);
-    return translated === key ? value : translated;
-  };
-
-  const toggleInterest = (interest) => {
-    setForm((current) => ({
-      ...current,
-      interests: current.interests.includes(interest)
-        ? current.interests.filter((item) => item !== interest)
-        : [...current.interests, interest],
-    }));
-  };
 
   const handleSave = async () => {
     const result = await updateProfile({
@@ -77,7 +59,7 @@ const { theme, isDarkMode, toggleTheme } = useTheme();
       phoneNumber: form.phoneNumber,
       preferences: {
         languages: form.languages,
-        interests: form.interests,
+        interests: user?.preferences?.interests || [],
       },
     });
 
@@ -217,23 +199,45 @@ const { theme, isDarkMode, toggleTheme } = useTheme();
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('interests')}</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>App Font</Text>
+          <Text style={[styles.biometricCopy, { color: colors.textMuted }]}>
+            Switch the entire app between popular reading styles.
+          </Text>
           <View style={styles.optionRow}>
-            {availableInterests.map((interest) => {
-              const active = form.interests.includes(interest);
+            {availableFonts.map((font) => {
+              const active = fontPreference === font.key;
               return (
                 <TouchableOpacity
-                  key={interest}
+                  key={font.key}
                   style={[
                     styles.optionChip,
                     { backgroundColor: colors.cardSoft, borderColor: colors.border },
                     active && [styles.optionChipActive, { backgroundColor: colors.primary, borderColor: colors.primary }],
                   ]}
-                  onPress={() => toggleInterest(interest)}
+                  onPress={() => {
+                    void setFontPreference(font.key);
+                  }}
                 >
-                  <Text style={[styles.optionText, { color: colors.textMuted }, active && [styles.optionTextActive, { color: colors.primaryText }]]}>
-                    {formatInterestLabel(interest)}
-                  </Text>
+                  <View style={styles.fontChipContent}>
+                    <Text
+                      style={[
+                        styles.fontPreview,
+                        { color: colors.text, fontFamily: font.family },
+                        active && { color: colors.primaryText },
+                      ]}
+                    >
+                      {font.preview}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.optionText,
+                        { color: colors.textMuted },
+                        active && [styles.optionTextActive, { color: colors.primaryText }],
+                      ]}
+                    >
+                      {font.label}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -325,7 +329,7 @@ const { theme, isDarkMode, toggleTheme } = useTheme();
           <Text style={[styles.primaryButtonText, { color: colors.primaryText }]}>{loading ? t('loading') : t('save_profile')}</Text>
         </TouchableOpacity>
 
-<TouchableOpacity style={[styles.secondaryButton, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={async () => {
+        <TouchableOpacity style={[styles.secondaryButton, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={async () => {
             await logout();
             router.replace('/(auth)/login');
           }}>
@@ -418,6 +422,16 @@ const styles = StyleSheet.create({
   optionChipActive: {
     backgroundColor: '#264E86',
     borderColor: '#264E86',
+  },
+  fontChipContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  fontPreview: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1D2D45',
   },
   optionText: {
     color: '#66707C',

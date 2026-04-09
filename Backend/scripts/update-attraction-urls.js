@@ -37,7 +37,7 @@ const updateAttractionUrls = async () => {
             bookingUrl: item.bookingUrl,
           },
         },
-        { new: true }
+        { returnDocument: 'after' }
       );
 
       if (result) {

@@ -1,4 +1,5 @@
-import { StyleSheet, View } from 'react-native';
+import { useEffect } from 'react';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { Redirect, Slot, useRootNavigationState, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../context/AuthContext';
@@ -15,6 +16,14 @@ function RootNavigator() {
   const onWelcomeScreen = segments.length === 0 || (segments.length === 1 && segments[0] === 'index');
   const onAboutScreen = segments.length === 1 && segments[0] === 'about';
   const onLanguagesScreen = segments.length === 1 && segments[0] === 'languages';
+
+  useEffect(() => {
+    const fontFamily = theme.fonts?.regular;
+    Text.defaultProps = Text.defaultProps || {};
+    TextInput.defaultProps = TextInput.defaultProps || {};
+    Text.defaultProps.style = fontFamily ? { fontFamily } : undefined;
+    TextInput.defaultProps.style = fontFamily ? { fontFamily } : undefined;
+  }, [theme.fonts]);
 
   if (!rootNavigationState?.key || loading) {
     return (

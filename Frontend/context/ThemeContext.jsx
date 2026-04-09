@@ -1,11 +1,67 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 const THEME_KEY = 'appTheme';
+const FONT_KEY = 'appFontPreference';
+
+const fontPresets = {
+  system: {
+    label: 'System',
+    regular: undefined,
+    preview: 'Aa',
+  },
+  sans: {
+    label: 'Sans',
+    regular: Platform.select({
+      android: 'sans-serif',
+      ios: 'System',
+      default: 'sans-serif',
+    }),
+    preview: 'Aa',
+  },
+  serif: {
+    label: 'Serif',
+    regular: Platform.select({
+      android: 'serif',
+      ios: 'Georgia',
+      default: 'serif',
+    }),
+    preview: 'Aa',
+  },
+  mono: {
+    label: 'Monospace',
+    regular: Platform.select({
+      android: 'monospace',
+      ios: 'Courier',
+      default: 'monospace',
+    }),
+    preview: 'Aa',
+  },
+  modern: {
+    label: 'Modern',
+    regular: Platform.select({
+      android: 'sans-serif-medium',
+      ios: 'AvenirNext-Regular',
+      default: 'sans-serif',
+    }),
+    preview: 'Aa',
+  },
+  display: {
+    label: 'Display',
+    regular: Platform.select({
+      android: 'sans-serif-condensed',
+      ios: 'Trebuchet MS',
+      default: 'sans-serif',
+    }),
+    preview: 'Aa',
+  },
+};
 
 const themePalettes = {
   light: {
     mode: 'light',
+    fonts: fontPresets.system,
     colors: {
       screen: '#F7F1E8',
       screenMuted: '#F6F1E8',
@@ -40,6 +96,7 @@ const themePalettes = {
   },
   dark: {
     mode: 'dark',
+    fonts: fontPresets.system,
     colors: {
       screen: '#0F1722',
       screenMuted: '#121C28',
@@ -78,21 +135,28 @@ const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
   const [themePreference, setThemePreference] = useState('light');
+  const [fontPreference, setFontPreferenceState] = useState('system');
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const loadTheme = async () => {
+    const loadPreferences = async () => {
       try {
-        const savedTheme = await SecureStore.getItemAsync(THEME_KEY);
+        const [savedTheme, savedFont] = await Promise.all([
+          SecureStore.getItemAsync(THEME_KEY),
+          SecureStore.getItemAsync(FONT_KEY),
+        ]);
         if (savedTheme === 'light' || savedTheme === 'dark') {
           setThemePreference(savedTheme);
+        }
+        if (savedFont && fontPresets[savedFont]) {
+          setFontPreferenceState(savedFont);
         }
       } finally {
         setReady(true);
       }
     };
 
-    void loadTheme();
+    void loadPreferences();
   }, []);
 
   const setTheme = async (nextTheme) => {
@@ -109,16 +173,36 @@ export function ThemeProvider({ children }) {
     await setTheme(nextTheme);
   };
 
+  const setFontPreference = async (nextFont) => {
+    if (!fontPresets[nextFont]) {
+      return;
+    }
+
+    setFontPreferenceState(nextFont);
+    await SecureStore.setItemAsync(FONT_KEY, nextFont);
+  };
+
   const value = useMemo(
     () => ({
       themePreference,
-      theme: themePalettes[themePreference],
+      fontPreference,
+      theme: {
+        ...themePalettes[themePreference],
+        fonts: fontPresets[fontPreference],
+      },
       isDarkMode: themePreference === 'dark',
+      availableFonts: Object.entries(fontPresets).map(([key, value]) => ({
+        key,
+        label: value.label,
+        preview: value.preview,
+        family: value.regular,
+      })),
       ready,
       setTheme,
+      setFontPreference,
       toggleTheme,
     }),
-    [ready, themePreference]
+    [fontPreference, ready, themePreference]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

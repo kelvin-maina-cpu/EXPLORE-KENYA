@@ -11,6 +11,7 @@ export default function Login() {
   const [loginMode, setLoginMode] = useState('user');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const {
     login,
     loading,
@@ -184,21 +185,36 @@ export default function Login() {
             autoCapitalize="none"
           />
           <Text style={[styles.label, { color: colors.textSoft }]}>{t('password')}</Text>
-          <TextInput
+          <View
             style={[
-              styles.input,
+              styles.passwordField,
               {
                 borderColor: colors.borderSoft,
-                color: colors.inputText,
                 backgroundColor: colors.cardSoft,
               },
             ]}
-            placeholder={t('auth_enter_password')}
-            placeholderTextColor={colors.placeholder}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          >
+            <TextInput
+              style={[
+                styles.passwordInput,
+                {
+                  color: colors.inputText,
+                },
+              ]}
+              placeholder={t('auth_enter_password')}
+              placeholderTextColor={colors.placeholder}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!passwordVisible}
+            />
+            <TouchableOpacity style={styles.eyeButton} onPress={() => setPasswordVisible((current) => !current)}>
+              <MaterialCommunityIcons
+                name={passwordVisible ? 'eye-off-outline' : 'eye-outline'}
+                size={22}
+                color={colors.textMuted}
+              />
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
             style={[styles.primaryButton, { backgroundColor: colors.primary }]}
@@ -402,6 +418,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#1a1a1a',
     backgroundColor: '#fff',
+  },
+  passwordField: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 14,
+    paddingRight: 10,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: '#1a1a1a',
+  },
+  eyeButton: {
+    padding: 4,
   },
   primaryButton: {
     marginTop: 4,

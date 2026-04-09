@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useLocale } from '../../context/LocalizationContext';
 
@@ -13,6 +14,8 @@ export default function Register() {
     confirmPassword: '',
     phoneNumber: '',
   });
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const { register, loading } = useAuth();
   const { t } = useLocale();
   const router = useRouter();
@@ -98,23 +101,41 @@ export default function Register() {
             keyboardType="phone-pad"
           />
           <Text style={styles.label}>{t('password')}</Text>
-          <TextInput
-            style={styles.input}
-            placeholder={t('auth_enter_password')}
-            placeholderTextColor="#999"
-            value={form.password}
-            onChangeText={(text) => setForm((current) => ({ ...current, password: text }))}
-            secureTextEntry
-          />
+          <View style={styles.passwordField}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder={t('auth_enter_password')}
+              placeholderTextColor="#999"
+              value={form.password}
+              onChangeText={(text) => setForm((current) => ({ ...current, password: text }))}
+              secureTextEntry={!passwordVisible}
+            />
+            <TouchableOpacity style={styles.eyeButton} onPress={() => setPasswordVisible((current) => !current)}>
+              <MaterialCommunityIcons
+                name={passwordVisible ? 'eye-off-outline' : 'eye-outline'}
+                size={22}
+                color="#66707C"
+              />
+            </TouchableOpacity>
+          </View>
           <Text style={styles.label}>{t('confirm_password')}</Text>
-          <TextInput
-            style={styles.input}
-            placeholder={t('confirm_password')}
-            placeholderTextColor="#999"
-            value={form.confirmPassword}
-            onChangeText={(text) => setForm((current) => ({ ...current, confirmPassword: text }))}
-            secureTextEntry
-          />
+          <View style={styles.passwordField}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder={t('confirm_password')}
+              placeholderTextColor="#999"
+              value={form.confirmPassword}
+              onChangeText={(text) => setForm((current) => ({ ...current, confirmPassword: text }))}
+              secureTextEntry={!confirmPasswordVisible}
+            />
+            <TouchableOpacity style={styles.eyeButton} onPress={() => setConfirmPasswordVisible((current) => !current)}>
+              <MaterialCommunityIcons
+                name={confirmPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
+                size={22}
+                color="#66707C"
+              />
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity style={styles.primaryButton} onPress={handleRegister} disabled={loading}>
             <Text style={styles.primaryButtonText}>{loading ? t('loading') : t('register')}</Text>
@@ -187,6 +208,25 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#1a1a1a',
     backgroundColor: '#fff',
+  },
+  passwordField: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 14,
+    paddingRight: 10,
+    backgroundColor: '#fff',
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: '#1a1a1a',
+  },
+  eyeButton: {
+    padding: 4,
   },
   primaryButton: {
     marginTop: 4,
