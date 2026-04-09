@@ -204,6 +204,8 @@
                     <label><span>Resident Fee</span><input id="attraction-fee-resident" type="number" min="0" value="0" /></label>
                     <label><span>Non-resident Fee</span><input id="attraction-fee-nonresident" type="number" min="0" value="0" /></label>
                   </div>
+                  <label><span>Website URL</span><input id="attraction-website-url" type="url" placeholder="https://example.com" /></label>
+                  <label><span>Booking URL</span><input id="attraction-booking-url" type="url" placeholder="https://example.com/book" /></label>
                   <label><span>Highlights</span><input id="attraction-highlights" placeholder="Game drives, Bird watching" /></label>
                   <label><span>Image URLs</span><input id="attraction-images" placeholder="Comma separated URLs" /></label>
                   <label class="check"><input id="attraction-active" type="checkbox" checked /> Active</label>
@@ -225,6 +227,51 @@
                 <div id="attraction-list" class="list"></div>
               </article>
             </div>
+          </section>
+
+          <section id="tab-attraction-details" class="tab-panel">
+            <article class="panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Attraction Details</p>
+                  <h3>Edit Attraction</h3>
+                </div>
+                <button id="attraction-detail-back" class="btn btn-ghost">Back to Attractions</button>
+              </div>
+              <form id="attraction-detail-form" class="stack">
+                <input id="detail-attraction-id" type="hidden" />
+                <label><span>Name</span><input id="detail-attraction-name" required /></label>
+                <div class="inline-fields">
+                  <label>
+                    <span>Category</span>
+                    <select id="detail-attraction-category">
+                      <option value="wildlife">Wildlife</option>
+                      <option value="culture">Culture</option>
+                      <option value="adventure">Adventure</option>
+                      <option value="beach">Beach</option>
+                      <option value="history">History</option>
+                    </select>
+                  </label>
+                  <label><span>County</span><input id="detail-attraction-county" required /></label>
+                </div>
+                <label><span>Description</span><textarea id="detail-attraction-description" rows="4" required></textarea></label>
+                <div class="inline-fields">
+                  <label><span>Latitude</span><input id="detail-attraction-latitude" type="number" step="any" required /></label>
+                  <label><span>Longitude</span><input id="detail-attraction-longitude" type="number" step="any" required /></label>
+                </div>
+                <div class="inline-fields">
+                  <label><span>Resident Fee</span><input id="detail-attraction-fee-resident" type="number" min="0" value="0" /></label>
+                  <label><span>Non-resident Fee</span><input id="detail-attraction-fee-nonresident" type="number" min="0" value="0" /></label>
+                </div>
+                <label><span>Website URL</span><input id="detail-attraction-website-url" type="url" placeholder="https://example.com" /></label>
+                <label><span>Booking URL</span><input id="detail-attraction-booking-url" type="url" placeholder="https://example.com/book" /></label>
+                <label><span>Highlights</span><input id="detail-attraction-highlights" placeholder="Game drives, Bird watching" /></label>
+                <label><span>Image URLs</span><input id="detail-attraction-images" placeholder="Comma separated URLs" /></label>
+                <label class="check"><input id="detail-attraction-active" type="checkbox" checked /> Active</label>
+                <button type="submit" class="btn btn-primary">Update Attraction</button>
+                <p id="attraction-detail-feedback" class="feedback hidden"></p>
+              </form>
+            </article>
           </section>
 
           <section id="tab-bookings" class="tab-panel">

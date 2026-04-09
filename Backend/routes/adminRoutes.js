@@ -53,6 +53,8 @@ const normalizeAttractionPayload = (body = {}) => {
     description: `${body.description || ''}`.trim(),
     category: ATTRACTION_CATEGORIES.includes(body.category) ? body.category : 'wildlife',
     county: `${body.county || body.locationName || ''}`.trim(),
+    websiteUrl: `${body.websiteUrl || ''}`.trim(),
+    bookingUrl: `${body.bookingUrl || ''}`.trim(),
     images: normalizeStringList(body.images),
     entryFee: {
       resident: Number(body.entryFee?.resident ?? 0),

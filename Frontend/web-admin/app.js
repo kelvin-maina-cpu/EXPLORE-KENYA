@@ -194,9 +194,29 @@ const fillAttractionForm = (attraction) => {
   $('attraction-longitude').value = attraction.location?.coordinates?.[0] ?? 36.8219;
   $('attraction-fee-resident').value = attraction.entryFee?.resident || 0;
   $('attraction-fee-nonresident').value = attraction.entryFee?.nonResident || 0;
+  $('attraction-website-url').value = attraction.websiteUrl || '';
+  $('attraction-booking-url').value = attraction.bookingUrl || '';
   $('attraction-highlights').value = (attraction.highlights || []).join(', ');
   $('attraction-images').value = (attraction.images || []).join(', ');
   $('attraction-active').checked = Boolean(attraction.isActive);
+};
+
+const fillAttractionDetailForm = (attraction) => {
+  $('detail-attraction-id').value = attraction._id || '';
+  $('detail-attraction-name').value = attraction.name || '';
+  $('detail-attraction-category').value = attraction.category || 'wildlife';
+  $('detail-attraction-county').value = attraction.county || '';
+  $('detail-attraction-description').value = attraction.description || '';
+  $('detail-attraction-latitude').value = attraction.location?.coordinates?.[1] ?? -1.2921;
+  $('detail-attraction-longitude').value = attraction.location?.coordinates?.[0] ?? 36.8219;
+  $('detail-attraction-fee-resident').value = attraction.entryFee?.resident || 0;
+  $('detail-attraction-fee-nonresident').value = attraction.entryFee?.nonResident || 0;
+  $('detail-attraction-website-url').value = attraction.websiteUrl || '';
+  $('detail-attraction-booking-url').value = attraction.bookingUrl || '';
+  $('detail-attraction-highlights').value = (attraction.highlights || []).join(', ');
+  $('detail-attraction-images').value = (attraction.images || []).join(', ');
+  $('detail-attraction-active').checked = Boolean(attraction.isActive);
+  clearMessage($('attraction-detail-feedback'));
 };
 
 const resetAttractionForm = () => {
@@ -206,8 +226,42 @@ const resetAttractionForm = () => {
   $('attraction-longitude').value = 36.8219;
   $('attraction-fee-resident').value = 0;
   $('attraction-fee-nonresident').value = 0;
+  $('attraction-website-url').value = '';
+  $('attraction-booking-url').value = '';
   $('attraction-active').checked = true;
   clearMessage($('attraction-feedback'));
+};
+
+const buildAttractionPayload = (prefix = 'attraction') => ({
+  name: $(`${prefix}-name`).value,
+  category: $(`${prefix}-category`).value,
+  county: $(`${prefix}-county`).value,
+  description: $(`${prefix}-description`).value,
+  websiteUrl: $(`${prefix}-website-url`).value.trim(),
+  bookingUrl: $(`${prefix}-booking-url`).value.trim(),
+  coordinates: {
+    lat: Number($(`${prefix}-latitude`).value),
+    lng: Number($(`${prefix}-longitude`).value),
+  },
+  entryFee: {
+    resident: Number($(`${prefix}-fee-resident`).value || 0),
+    nonResident: Number($(`${prefix}-fee-nonresident`).value || 0),
+  },
+  highlights: parseCsv($(`${prefix}-highlights`).value),
+  images: parseCsv($(`${prefix}-images`).value),
+  isActive: $(`${prefix}-active`).checked,
+});
+
+const openAttractionDetailsEditor = async (attractionId) => {
+  const response = await api(`/admin/attractions/${attractionId}`);
+  const attraction = response.attraction;
+  if (!attraction) {
+    throw new Error('Attraction not found');
+  }
+
+  fillAttractionDetailForm(attraction);
+  openTab('attraction-details');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 const renderAttractions = () => {
@@ -396,6 +450,10 @@ document.querySelectorAll('[data-open-tab]').forEach((button) => {
 
 $('tour-reset').addEventListener('click', resetTourForm);
 $('attraction-reset').addEventListener('click', resetAttractionForm);
+$('attraction-detail-back').addEventListener('click', () => {
+  openTab('attractions');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
 
 $('tour-form').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -457,23 +515,7 @@ $('attraction-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const feedback = $('attraction-feedback');
   clearMessage(feedback);
-  const payload = {
-    name: $('attraction-name').value,
-    category: $('attraction-category').value,
-    county: $('attraction-county').value,
-    description: $('attraction-description').value,
-    coordinates: {
-      lat: Number($('attraction-latitude').value),
-      lng: Number($('attraction-longitude').value),
-    },
-    entryFee: {
-      resident: Number($('attraction-fee-resident').value || 0),
-      nonResident: Number($('attraction-fee-nonresident').value || 0),
-    },
-    highlights: parseCsv($('attraction-highlights').value),
-    images: parseCsv($('attraction-images').value),
-    isActive: $('attraction-active').checked,
-  };
+  const payload = buildAttractionPayload('attraction');
   try {
     const id = $('attraction-id').value;
     await api(id ? `/admin/attractions/${id}` : '/admin/attractions', {
@@ -488,17 +530,41 @@ $('attraction-form').addEventListener('submit', async (event) => {
   }
 });
 
+$('attraction-detail-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const feedback = $('attraction-detail-feedback');
+  clearMessage(feedback);
+  const id = $('detail-attraction-id').value;
+
+  if (!id) {
+    setMessage(feedback, 'Missing attraction ID for update.', true);
+    return;
+  }
+
+  try {
+    await api(`/admin/attractions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(buildAttractionPayload('detail-attraction')),
+    });
+    await loadAll();
+    setMessage(feedback, 'Attraction updated successfully.');
+    openTab('attractions');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (error) {
+    setMessage(feedback, error.message, true);
+  }
+});
+
 $('attraction-list').addEventListener('click', async (event) => {
   const editButton = event.target.closest('[data-attraction-edit]');
   const deleteButton = event.target.closest('[data-attraction-delete]');
   const editId = editButton?.dataset.attractionEdit;
   const deleteId = deleteButton?.dataset.attractionDelete;
   if (editId) {
-    const attraction = state.attractions.find((item) => item._id === editId);
-    if (attraction) {
-      fillAttractionForm(attraction);
-      openTab('attractions');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    try {
+      await openAttractionDetailsEditor(editId);
+    } catch (error) {
+      alert(error.message);
     }
     return;
   }
